@@ -66,6 +66,14 @@ describe('resetShip', () => {
     expect(ship.spawnX).toBe(400);
     expect(ship.spawnY).toBe(300);
   });
+
+  it('restores spawnAngle when set', () => {
+    const ship = createShip(0, 400, 300);
+    ship.angle = ship.spawnAngle = Math.PI;
+    ship.angle = 0.5; // changed during play
+    resetShip(ship, 400, 300);
+    expect(ship.angle).toBe(Math.PI);
+  });
 });
 
 describe('destroyShip', () => {

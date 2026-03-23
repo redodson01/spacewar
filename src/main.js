@@ -22,8 +22,8 @@ const ships = [
   createShip(1, 3 * canvas.width / 4, canvas.height / 2, PLAYER_COLORS[1]),
 ];
 // Face each other at start
-ships[0].angle = 0;        // P1 faces right
-ships[1].angle = Math.PI;  // P2 faces left
+ships[0].angle = ships[0].spawnAngle = 0;        // P1 faces right
+ships[1].angle = ships[1].spawnAngle = Math.PI;  // P2 faces left
 
 const stars = createStars(canvas.width, canvas.height);
 const projectiles = createProjectiles();

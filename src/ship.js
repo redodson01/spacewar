@@ -19,8 +19,9 @@ export function createShip(id, x, y, color = SHIP_DEFAULTS.color) {
 }
 
 export function resetShip(ship, centerX, centerY) {
-  const { color } = ship;
+  const { color, spawnAngle } = ship;
   Object.assign(ship, SHIP_DEFAULTS, { x: centerX, y: centerY, color });
+  if (spawnAngle !== undefined) ship.angle = spawnAngle;
 }
 
 export const RESPAWN_DELAY = 2.0;

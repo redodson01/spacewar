@@ -4,6 +4,7 @@ export function createInputManager(editorInputIds) {
   function onKeyDown(e) {
     if (editorInputIds.includes(e.target.id)) return;
     if (e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
     keys[e.code] = true;
   }
 
