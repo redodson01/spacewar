@@ -2,7 +2,7 @@ export const SHIP_DEFAULTS = {
   angle: -Math.PI / 2,
   vx: 0,
   vy: 0,
-  radius: 15,
+  radius: 20,
   thrust: 0.15,
   turnSpeed: 0.05,
   friction: 0.995,
@@ -70,6 +70,9 @@ export function drawShip(ctx, ship) {
   const left  = { x: x + Math.cos(angle + 2.4) * radius, y: y + Math.sin(angle + 2.4) * radius };
   const right = { x: x + Math.cos(angle - 2.4) * radius, y: y + Math.sin(angle - 2.4) * radius };
 
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 12;
+
   ctx.beginPath();
   ctx.moveTo(nose.x, nose.y);
   ctx.lineTo(left.x, left.y);
@@ -79,6 +82,7 @@ export function drawShip(ctx, ship) {
   ctx.fill();
 
   if (ship.thrusting) {
+    ctx.shadowColor = '#f80';
     const tail = { x: x - Math.cos(angle) * radius * 1.3, y: y - Math.sin(angle) * radius * 1.3 };
     ctx.beginPath();
     ctx.moveTo(left.x, left.y);
@@ -88,4 +92,6 @@ export function drawShip(ctx, ship) {
     ctx.fillStyle = `hsl(${30 + Math.random() * 20}, 100%, ${50 + Math.random() * 20}%)`;
     ctx.fill();
   }
+
+  ctx.shadowBlur = 0;
 }

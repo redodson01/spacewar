@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
 
 function makeShip() {
-  return { id: 0, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, fireCooldown: 0.25, fireCooldownTimer: 0, color: '#0ff' };
+  return { id: 0, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 20, fireCooldown: 0.25, fireCooldownTimer: 0, color: '#0ff' };
 }
 
 describe('createProjectiles', () => {

@@ -22,7 +22,7 @@ describe('createShip', () => {
     expect(ship.thrust).toBe(0.15);
     expect(ship.turnSpeed).toBe(0.05);
     expect(ship.friction).toBe(0.995);
-    expect(ship.radius).toBe(15);
+    expect(ship.radius).toBe(20);
     expect(ship.vx).toBe(0);
     expect(ship.vy).toBe(0);
     expect(ship.fireCooldown).toBe(0.25);
