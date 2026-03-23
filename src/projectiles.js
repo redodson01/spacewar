@@ -25,7 +25,8 @@ export function fireProjectile(projectiles, ship) {
     age: 0,
     lifetime: PROJECTILE_DEFAULTS.lifetime,
     radius: PROJECTILE_DEFAULTS.radius,
-    color: PROJECTILE_DEFAULTS.color,
+    color: ship.color,
+    ownerId: ship.id,
   });
 
   ship.fireCooldownTimer = ship.fireCooldown;

@@ -87,7 +87,7 @@ describe('editor storage integration', () => {
     vi.useFakeTimers();
     const elements = makeDOM();
     const luaCtx = makeLuaCtx();
-    createEditor(elements, luaCtx, {}, vi.fn());
+    createEditor(elements, luaCtx, {}, vi.fn(), vi.fn());
 
     for (let i = 0; i < 3; i++) {
       elements.replInput.value = 'same-cmd';

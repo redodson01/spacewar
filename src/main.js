@@ -1,5 +1,5 @@
 import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn } from './ship.js';
-import { createInputManager } from './input.js';
+import { createInputManager, PLAYER_BINDINGS, getActions } from './input.js';
 import { createStars, resizeStars, drawStars } from './stars.js';
 import { createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
 import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } from './explosions.js';
@@ -15,7 +15,16 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // Game objects
-const ship = createShip(canvas.width / 2, canvas.height / 2);
+const PLAYER_COLORS = ['#0ff', '#f0f'];
+
+const ships = [
+  createShip(0, canvas.width / 4, canvas.height / 2, PLAYER_COLORS[0]),
+  createShip(1, 3 * canvas.width / 4, canvas.height / 2, PLAYER_COLORS[1]),
+];
+// Face each other at start
+ships[0].angle = 0;        // P1 faces right
+ships[1].angle = Math.PI;  // P2 faces left
+
 const stars = createStars(canvas.width, canvas.height);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
@@ -48,16 +57,19 @@ let appendOutput = (text, isError) => {
   else console.log(text);
 };
 
+// Lua context operates on player 1's ship
 let luaCtx;
 try {
-  luaCtx = createLuaContext(fengari, ship, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaCtx = createLuaContext(fengari, ships[0], projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 } catch (e) {
   console.error('Lua init failed:', e);
-  luaCtx = createLuaContext(null, ship, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaCtx = createLuaContext(null, ships[0], projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 }
 
-const editorAPI = createEditor(elements, luaCtx, ship, () => {
-  resetShip(ship, canvas.width / 2, canvas.height / 2);
+const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
+  for (const ship of ships) {
+    resetShip(ship, ship.spawnX, ship.spawnY);
+  }
   explosions.length = 0;
 }, () => input.clear());
 appendOutput = editorAPI.appendOutput;
@@ -77,32 +89,44 @@ function gameLoop(time) {
   const dt = lastTime ? (time - lastTime) / 1000 : 0;
   lastTime = time;
 
-  // Recenter ship on first frame in case canvas wasn't sized at init
+  // Recenter ships on first frame in case canvas wasn't sized at init
   if (firstFrame) {
     firstFrame = false;
-    if (ship.x === 0 && ship.y === 0 && canvas.width > 0) {
-      ship.x = canvas.width / 2;
-      ship.y = canvas.height / 2;
+    if (canvas.width > 0) {
+      ships[0].x = ships[0].spawnX = canvas.width / 4;
+      ships[0].y = ships[0].spawnY = canvas.height / 2;
+      ships[1].x = ships[1].spawnX = 3 * canvas.width / 4;
+      ships[1].y = ships[1].spawnY = canvas.height / 2;
     }
   }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   drawStars(ctx, stars);
-  tickRespawn(ship, dt, canvas.width / 2, canvas.height / 2);
-  updateShip(ship, input.keys, canvas.width, canvas.height);
-  tickFireCooldown(ship, dt);
-  if (input.keys['Space'] && !ship.destroyed) {
-    fireProjectile(projectiles, ship);
+
+  // Update each ship from its player's controls
+  for (let i = 0; i < ships.length; i++) {
+    const ship = ships[i];
+    const actions = getActions(input.keys, PLAYER_BINDINGS[i]);
+
+    tickRespawn(ship, dt);
+    updateShip(ship, actions, canvas.width, canvas.height);
+    tickFireCooldown(ship, dt);
+    if (actions.fire && !ship.destroyed) {
+      fireProjectile(projectiles, ship);
+    }
   }
+
   updateProjectiles(projectiles, dt, canvas.width, canvas.height);
 
-  if (!ship.destroyed) {
-    const hitIdx = checkShipProjectileCollision(ship, projectiles);
-    if (hitIdx >= 0) {
-      spawnExplosion(explosions, ship.x, ship.y, ship.color);
-      projectiles.splice(hitIdx, 1);
-      destroyShip(ship);
+  // Collision: any projectile can destroy any ship
+  for (const ship of ships) {
+    if (!ship.destroyed) {
+      const hitIdx = checkShipProjectileCollision(ship, projectiles);
+      if (hitIdx >= 0) {
+        spawnExplosion(explosions, ship.x, ship.y, ship.color);
+        projectiles.splice(hitIdx, 1);
+        destroyShip(ship);
+      }
     }
   }
 
@@ -110,7 +134,9 @@ function gameLoop(time) {
   updateExplosions(explosions, dt);
   drawExplosions(ctx, explosions);
   drawProjectiles(ctx, projectiles);
-  drawShip(ctx, ship, input.keys);
+  for (const ship of ships) {
+    drawShip(ctx, ship);
+  }
 
   requestAnimationFrame(gameLoop);
 }

@@ -14,7 +14,7 @@ const fengari = {
 };
 
 function makeShip() {
-  return { x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#0ff', fireCooldown: 0.25, fireCooldownTimer: 0, destroyed: false, respawnTimer: 0 };
+  return { id: 0, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#0ff', fireCooldown: 0.25, fireCooldownTimer: 0, destroyed: false, respawnTimer: 0 };
 }
 
 function makeCanvas() {

@@ -2,15 +2,23 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { SHIP_DEFAULTS, RESPAWN_DELAY, createShip, resetShip, updateShip, destroyShip, tickRespawn } from '../src/ship.js';
 
 describe('createShip', () => {
-  it('creates a ship at the given center position', () => {
-    const ship = createShip(400, 300);
+  it('creates a ship with id, position, and color', () => {
+    const ship = createShip(0, 400, 300, '#f00');
+    expect(ship.id).toBe(0);
     expect(ship.x).toBe(400);
     expect(ship.y).toBe(300);
+    expect(ship.color).toBe('#f00');
+    expect(ship.spawnX).toBe(400);
+    expect(ship.spawnY).toBe(300);
+  });
+
+  it('uses default color when not specified', () => {
+    const ship = createShip(0, 0, 0);
+    expect(ship.color).toBe('#0ff');
   });
 
   it('applies default values', () => {
-    const ship = createShip(0, 0);
-    expect(ship.color).toBe('#0ff');
+    const ship = createShip(0, 0, 0);
     expect(ship.thrust).toBe(0.15);
     expect(ship.turnSpeed).toBe(0.05);
     expect(ship.friction).toBe(0.995);
@@ -21,13 +29,13 @@ describe('createShip', () => {
     expect(ship.fireCooldownTimer).toBe(0);
     expect(ship.destroyed).toBe(false);
     expect(ship.respawnTimer).toBe(0);
+    expect(ship.thrusting).toBe(false);
   });
 });
 
 describe('resetShip', () => {
   it('restores defaults and recenters', () => {
-    const ship = createShip(400, 300);
-    ship.color = '#f00';
+    const ship = createShip(0, 400, 300, '#f0f');
     ship.thrust = 999;
     ship.vx = 10;
     ship.vy = -5;
@@ -38,16 +46,31 @@ describe('resetShip', () => {
 
     expect(ship.x).toBe(500);
     expect(ship.y).toBe(400);
-    expect(ship.color).toBe(SHIP_DEFAULTS.color);
     expect(ship.thrust).toBe(SHIP_DEFAULTS.thrust);
     expect(ship.vx).toBe(0);
     expect(ship.vy).toBe(0);
+  });
+
+  it('preserves ship color', () => {
+    const ship = createShip(0, 400, 300, '#f0f');
+    resetShip(ship, 400, 300);
+    expect(ship.color).toBe('#f0f');
+  });
+
+  it('preserves ship id and spawn position', () => {
+    const ship = createShip(1, 400, 300);
+    ship.x = 0;
+    ship.y = 0;
+    resetShip(ship, 400, 300);
+    expect(ship.id).toBe(1);
+    expect(ship.spawnX).toBe(400);
+    expect(ship.spawnY).toBe(300);
   });
 });
 
 describe('destroyShip', () => {
   it('marks the ship as destroyed with a respawn timer', () => {
-    const ship = createShip(400, 300);
+    const ship = createShip(0, 400, 300);
     destroyShip(ship);
     expect(ship.destroyed).toBe(true);
     expect(ship.respawnTimer).toBe(RESPAWN_DELAY);
@@ -56,26 +79,28 @@ describe('destroyShip', () => {
 
 describe('tickRespawn', () => {
   it('is a no-op when not destroyed', () => {
-    const ship = createShip(400, 300);
-    expect(tickRespawn(ship, 0.5, 400, 300)).toBe(false);
+    const ship = createShip(0, 400, 300);
+    expect(tickRespawn(ship, 0.5)).toBe(false);
   });
 
   it('decrements the timer when destroyed', () => {
-    const ship = createShip(400, 300);
+    const ship = createShip(0, 400, 300);
     destroyShip(ship);
-    tickRespawn(ship, 0.5, 400, 300);
+    tickRespawn(ship, 0.5);
     expect(ship.respawnTimer).toBeCloseTo(RESPAWN_DELAY - 0.5);
     expect(ship.destroyed).toBe(true);
   });
 
-  it('resets the ship when timer expires', () => {
-    const ship = createShip(400, 300);
+  it('resets the ship at its spawn point when timer expires', () => {
+    const ship = createShip(0, 400, 300);
+    ship.x = 100;
+    ship.y = 100;
     destroyShip(ship);
-    const result = tickRespawn(ship, RESPAWN_DELAY + 0.1, 500, 400);
+    const result = tickRespawn(ship, RESPAWN_DELAY + 0.1);
     expect(result).toBe(true);
     expect(ship.destroyed).toBe(false);
-    expect(ship.x).toBe(500);
-    expect(ship.y).toBe(400);
+    expect(ship.x).toBe(400);
+    expect(ship.y).toBe(300);
   });
 });
 
@@ -85,51 +110,41 @@ describe('updateShip', () => {
   const H = 600;
 
   beforeEach(() => {
-    ship = createShip(W / 2, H / 2);
+    ship = createShip(0, W / 2, H / 2);
   });
 
   it('does not move without input', () => {
     const prevX = ship.x;
     const prevY = ship.y;
     updateShip(ship, {}, W, H);
-    // Ship should stay put (no velocity, no thrust)
     expect(ship.x).toBe(prevX);
     expect(ship.y).toBe(prevY);
   });
 
   it('applies thrust in the facing direction', () => {
-    ship.angle = 0; // facing right
-    updateShip(ship, { ArrowUp: true }, W, H);
+    ship.angle = 0;
+    updateShip(ship, { thrust: true }, W, H);
     expect(ship.vx).toBeGreaterThan(0);
     expect(ship.vy).toBeCloseTo(0, 10);
   });
 
-  it('turns left when ArrowLeft is pressed', () => {
+  it('sets thrusting flag', () => {
+    updateShip(ship, { thrust: true }, W, H);
+    expect(ship.thrusting).toBe(true);
+    updateShip(ship, {}, W, H);
+    expect(ship.thrusting).toBe(false);
+  });
+
+  it('turns left', () => {
     const prevAngle = ship.angle;
-    updateShip(ship, { ArrowLeft: true }, W, H);
+    updateShip(ship, { left: true }, W, H);
     expect(ship.angle).toBeLessThan(prevAngle);
   });
 
-  it('turns right when ArrowRight is pressed', () => {
+  it('turns right', () => {
     const prevAngle = ship.angle;
-    updateShip(ship, { ArrowRight: true }, W, H);
+    updateShip(ship, { right: true }, W, H);
     expect(ship.angle).toBeGreaterThan(prevAngle);
-  });
-
-  it('supports WASD controls', () => {
-    ship.angle = 0;
-    updateShip(ship, { KeyW: true }, W, H);
-    expect(ship.vx).toBeGreaterThan(0);
-
-    const ship2 = createShip(W / 2, H / 2);
-    const prevAngle = ship2.angle;
-    updateShip(ship2, { KeyA: true }, W, H);
-    expect(ship2.angle).toBeLessThan(prevAngle);
-
-    const ship3 = createShip(W / 2, H / 2);
-    const prevAngle3 = ship3.angle;
-    updateShip(ship3, { KeyD: true }, W, H);
-    expect(ship3.angle).toBeGreaterThan(prevAngle3);
   });
 
   it('applies friction to slow down', () => {
@@ -172,14 +187,14 @@ describe('updateShip', () => {
   it('respects custom thrust value', () => {
     ship.angle = 0;
     ship.thrust = 0.5;
-    updateShip(ship, { ArrowUp: true }, W, H);
+    updateShip(ship, { thrust: true }, W, H);
     expect(ship.vx).toBeCloseTo(0.5 * ship.friction, 10);
   });
 
   it('respects custom turnSpeed value', () => {
     ship.turnSpeed = 0.2;
     const prevAngle = ship.angle;
-    updateShip(ship, { ArrowLeft: true }, W, H);
+    updateShip(ship, { left: true }, W, H);
     expect(ship.angle).toBeCloseTo(prevAngle - 0.2, 10);
   });
 
@@ -187,7 +202,7 @@ describe('updateShip', () => {
     ship.vx = 5;
     ship.destroyed = true;
     const prevX = ship.x;
-    updateShip(ship, { ArrowUp: true }, W, H);
+    updateShip(ship, { thrust: true }, W, H);
     expect(ship.x).toBe(prevX);
   });
 });
