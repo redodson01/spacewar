@@ -1,7 +1,7 @@
 export const PROJECTILE_DEFAULTS = {
-  speed: 7,
-  lifetime: 1.5,
-  radius: 2,
+  speed: 16,
+  lifetime: 4,
+  radius: 4,
   color: '#ff0',
 };
 
@@ -25,7 +25,8 @@ export function fireProjectile(projectiles, ship) {
     age: 0,
     lifetime: PROJECTILE_DEFAULTS.lifetime,
     radius: PROJECTILE_DEFAULTS.radius,
-    color: PROJECTILE_DEFAULTS.color,
+    color: ship.color,
+    ownerId: ship.id,
   });
 
   ship.fireCooldownTimer = ship.fireCooldown;
@@ -51,9 +52,12 @@ export function updateProjectiles(projectiles, dt, canvasWidth, canvasHeight) {
 
 export function drawProjectiles(ctx, projectiles) {
   for (const p of projectiles) {
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
     ctx.fillStyle = p.color;
     ctx.fill();
   }
+  ctx.shadowBlur = 0;
 }

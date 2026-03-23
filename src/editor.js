@@ -186,7 +186,7 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
   runBtn.addEventListener('click', () => luaCtx.runLua(scriptArea.value));
   resetBtn.addEventListener('click', () => {
     resetShipFn();
-    luaCtx.reset(ship);
+    luaCtx.reset();
     appendOutput('Ship reset to defaults.');
   });
   clearBtn.addEventListener('click', () => { outputDiv.innerHTML = ''; });
