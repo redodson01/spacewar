@@ -16,6 +16,7 @@ function makeDOM() {
     <button id="run-btn"></button>
     <button id="reset-btn"></button>
     <button id="clear-btn"></button>
+    <button id="clear-data-btn"></button>
   `;
   return {
     editor: document.getElementById('editor'),
@@ -27,6 +28,7 @@ function makeDOM() {
     runBtn: document.getElementById('run-btn'),
     resetBtn: document.getElementById('reset-btn'),
     clearBtn: document.getElementById('clear-btn'),
+    clearDataBtn: document.getElementById('clear-data-btn'),
   };
 }
 
@@ -123,5 +125,17 @@ describe('editor storage integration', () => {
     expect(localStorage.getItem('spacewar:script')).toBe('edited content');
 
     vi.useRealTimers();
+  });
+
+  it('clears saved data when clear data button is clicked', () => {
+    saveReplHistory(['cmd1']);
+    saveScript('some script');
+    const elements = makeDOM();
+    createEditor(elements, makeLuaCtx(), {}, vi.fn());
+
+    elements.clearDataBtn.click();
+
+    expect(localStorage.getItem('spacewar:repl-history')).toBeNull();
+    expect(localStorage.getItem('spacewar:script')).toBeNull();
   });
 });

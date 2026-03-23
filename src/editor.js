@@ -1,4 +1,4 @@
-import { loadReplHistory, saveReplHistory, loadScript, saveScript, MAX_REPL_HISTORY } from './storage.js';
+import { loadReplHistory, saveReplHistory, loadScript, saveScript, clearAll, MAX_REPL_HISTORY } from './storage.js';
 
 export const EXAMPLES = {
   color: `-- Change the ship color
@@ -33,7 +33,7 @@ end
 print("Orbiting...")`,
 };
 
-export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn }, luaCtx, ship, resetShipFn) {
+export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn) {
   let editorOpen = false;
   let lastEditorFocus = null;
 
@@ -174,6 +174,12 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
     appendOutput('Ship reset to defaults.');
   });
   clearBtn.addEventListener('click', () => { outputDiv.innerHTML = ''; });
+  clearDataBtn.addEventListener('click', () => {
+    clearAll();
+    replHistory.length = 0;
+    replHistoryIdx = 0;
+    appendOutput('Saved data cleared.');
+  });
 
   // Examples dropdown
   exampleSelect.addEventListener('change', function () {

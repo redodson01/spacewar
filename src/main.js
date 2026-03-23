@@ -28,6 +28,7 @@ const elements = {
   runBtn: document.getElementById('run-btn'),
   resetBtn: document.getElementById('reset-btn'),
   clearBtn: document.getElementById('clear-btn'),
+  clearDataBtn: document.getElementById('clear-data-btn'),
   canvas,
 };
 
