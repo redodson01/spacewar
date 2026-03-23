@@ -81,6 +81,24 @@ describe('editor storage integration', () => {
     vi.useRealTimers();
   });
 
+  it('skips consecutive duplicate REPL commands in history', () => {
+    vi.useFakeTimers();
+    const elements = makeDOM();
+    const luaCtx = makeLuaCtx();
+    createEditor(elements, luaCtx, {}, vi.fn());
+
+    for (let i = 0; i < 3; i++) {
+      elements.replInput.value = 'same-cmd';
+      elements.replInput.dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', bubbles: true }));
+    }
+    vi.advanceTimersByTime(300);
+
+    expect(luaCtx.runLuaREPL).toHaveBeenCalledTimes(3);
+    const stored = JSON.parse(localStorage.getItem('spacewar:repl-history'));
+    expect(stored.filter(c => c === 'same-cmd')).toHaveLength(1);
+    vi.useRealTimers();
+  });
+
   it('saves script when example is loaded', () => {
     const elements = makeDOM();
     createEditor(elements, makeLuaCtx(), {}, vi.fn());

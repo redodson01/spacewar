@@ -135,12 +135,14 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
       e.preventDefault();
       const line = replInput.value.trim();
       if (line) {
-        replHistory.push(line);
-        if (replHistory.length > MAX_REPL_HISTORY) {
-          replHistory.splice(0, replHistory.length - MAX_REPL_HISTORY);
+        if (replHistory[replHistory.length - 1] !== line) {
+          replHistory.push(line);
+          if (replHistory.length > MAX_REPL_HISTORY) {
+            replHistory.splice(0, replHistory.length - MAX_REPL_HISTORY);
+          }
+          debouncedSaveHistory();
         }
         replHistoryIdx = replHistory.length;
-        debouncedSaveHistory();
         luaCtx.runLuaREPL(line);
       }
       replInput.value = '';
