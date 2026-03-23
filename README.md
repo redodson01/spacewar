@@ -53,8 +53,8 @@ Press backtick to open the editor. A single-line REPL is at the bottom for quick
 
 | Global | Description |
 |---|---|
-| `ship` / `ship1` | Player 1's ship (alias) |
-| `ship2` | Player 2's ship |
+| `ship` / `ship1` | Player 1's ship (alias for ship1) |
+| `ship2` – `ship4` | Other players' ships (nil if not present) |
 | `ship.color` | Ship color (CSS color string) |
 | `ship.thrust` | Acceleration per frame |
 | `ship.turnSpeed` | Rotation speed per frame |
@@ -102,14 +102,19 @@ src/
   projectiles.js       Projectile spawning, movement, and rendering
   explosions.js        Particle explosion effects
   collision.js         Collision detection
-  lua-integration.js   Fengari/Lua bridge (operates on player 1's ship)
+  world.js             World dimensions, player colors, spawn positions
+  lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
+  net.js               WebSocket client and interpolation
   storage.js           localStorage persistence layer
+server/
+  index.js             Multiplayer WebSocket server
 tests/
   ship.test.js             Ship physics unit tests
   projectiles.test.js      Projectile system unit tests
   explosions.test.js       Explosion particle unit tests
   collision.test.js        Collision detection unit tests
+  world.test.js            World constants unit tests
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
   stars.test.js            Starfield unit tests
@@ -119,7 +124,9 @@ tests/
 ### Scripts
 
 ```bash
-npm run dev          # Start local dev server on port 8080
+npm run dev          # Local dev server (2-player local mode)
+npm run serve        # Multiplayer server (LAN)
+npm run serve:tunnel # Multiplayer server + public URL for remote play
 npm run lint         # Run ESLint
 npm test             # Run tests (Vitest)
 npm run test:watch   # Run tests in watch mode

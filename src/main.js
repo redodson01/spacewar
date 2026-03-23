@@ -1,11 +1,13 @@
 import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn } from './ship.js';
 import { createInputManager, PLAYER_BINDINGS, getActions } from './input.js';
 import { createStars, resizeStars, drawStars } from './stars.js';
-import { createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
+import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
 import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } from './explosions.js';
 import { checkShipProjectileCollision, checkShipShipCollision } from './collision.js';
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS } from './world.js';
+import { createNetClient, createInterpolator } from './net.js';
 
 // Canvas
 const canvas = document.getElementById('game');
@@ -15,21 +17,33 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // Game objects
-const PLAYER_COLORS = ['#f00', '#00f'];
-
-const ships = [
-  createShip(0, canvas.width / 4, canvas.height / 2, PLAYER_COLORS[0]),
-  createShip(1, 3 * canvas.width / 4, canvas.height / 2, PLAYER_COLORS[1]),
-];
-// Face each other at start
-ships[0].angle = ships[0].spawnAngle = 0;        // P1 faces right
-ships[1].angle = ships[1].spawnAngle = Math.PI;  // P2 faces left
-
+const ships = [];
 const stars = createStars(canvas.width, canvas.height);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
 const input = createInputManager(['script-input', 'repl-input']);
 input.attach(window);
+
+// Networking
+const net = createNetClient();
+const interpolator = createInterpolator();
+let networkMode = false;
+
+function makeShip(id) {
+  const spawn = SPAWN_POSITIONS[id];
+  const ship = createShip(id, spawn.x, spawn.y, PLAYER_COLORS[id]);
+  ship.angle = ship.spawnAngle = spawn.angle;
+  return ship;
+}
+
+// Initialize local 2-player mode (default)
+function initLocalMode() {
+  ships.length = 0;
+  ships.push(makeShip(0), makeShip(1));
+  for (const s of ships) s.isLocal = true;
+}
+
+initLocalMode();
 
 // Editor DOM elements
 const elements = {
@@ -49,10 +63,7 @@ const elements = {
 // Lua integration — use fengari from CDN global if available
 const fengari = (typeof globalThis.fengari !== 'undefined') ? globalThis.fengari : null;
 
-// Editor needs appendOutput for Lua context, but Lua context needs appendOutput too.
-// Create a forwarding function, then wire it up after editor is created.
 let appendOutput = (text, isError) => {
-  // Fallback before editor is ready
   if (isError) console.error(text);
   else console.log(text);
 };
@@ -69,6 +80,7 @@ const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
   for (const ship of ships) {
     resetShip(ship, ship.spawnX, ship.spawnY);
   }
+  projectiles.length = 0;
   explosions.length = 0;
 }, () => input.clear());
 appendOutput = editorAPI.appendOutput;
@@ -77,63 +89,194 @@ window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   resizeStars(stars, canvas.width, canvas.height);
-  luaCtx.updateScreen();
 });
+
+// --- Networking callbacks ---
+
+net.onJoin((id, _color) => {
+  if (ships.find(s => s.id === id)) return;
+  const ship = makeShip(id);
+  ship.isLocal = false;
+  ships.push(ship);
+  luaCtx.reset();
+});
+
+net.onLeave((id) => {
+  const idx = ships.findIndex(s => s.id === id);
+  if (idx >= 0) {
+    ships.splice(idx, 1);
+    interpolator.remove(id);
+    // Remove projectiles owned by the leaving player
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      if (projectiles[i].ownerId === id) projectiles.splice(i, 1);
+    }
+    luaCtx.reset();
+  }
+});
+
+net.onState((id, state) => {
+  interpolator.onState(id, state);
+});
+
+net.onFire((id, data) => {
+  const ship = ships.find(s => s.id === id);
+  if (!ship) return;
+  projectiles.push({
+    x: data.x + Math.cos(data.angle) * ship.radius,
+    y: data.y + Math.sin(data.angle) * ship.radius,
+    vx: data.vx + Math.cos(data.angle) * PROJECTILE_DEFAULTS.speed,
+    vy: data.vy + Math.sin(data.angle) * PROJECTILE_DEFAULTS.speed,
+    age: 0,
+    lifetime: PROJECTILE_DEFAULTS.lifetime,
+    radius: PROJECTILE_DEFAULTS.radius,
+    color: data.color,
+    ownerId: id,
+  });
+});
+
+net.onDeath((id, x, y, color) => {
+  const ship = ships.find(s => s.id === id);
+  if (ship) {
+    spawnExplosion(explosions, x, y, color);
+    destroyShip(ship);
+  }
+});
+
+net.onRespawn((id, x, y) => {
+  const ship = ships.find(s => s.id === id);
+  if (ship) {
+    resetShip(ship, x, y);
+  }
+});
+
+// Try to connect — if it works, switch to network mode
+net.connect().then((welcome) => {
+  if (!welcome) return;
+
+  networkMode = true;
+
+  // Rebuild ships: local ship first, then existing remote players
+  ships.length = 0;
+  projectiles.length = 0;
+  explosions.length = 0;
+
+  const localShip = makeShip(welcome.id);
+  localShip.isLocal = true;
+  ships.push(localShip);
+
+  for (const p of welcome.players) {
+    const ship = makeShip(p.id);
+    ship.isLocal = false;
+    ships.push(ship);
+  }
+
+  luaCtx.reset();
+  elements.hintDiv.textContent = 'WASD + Space | ` for editor';
+});
+
+// Rendering transform: map world coordinates to canvas
+function applyWorldTransform() {
+  const scale = Math.min(canvas.width / WORLD_WIDTH, canvas.height / WORLD_HEIGHT);
+  const offsetX = (canvas.width - WORLD_WIDTH * scale) / 2;
+  const offsetY = (canvas.height - WORLD_HEIGHT * scale) / 2;
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+}
+
+function drawWorldBorder() {
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+}
 
 // Game loop
 let lastTime = 0;
-let firstFrame = true;
 
 function gameLoop(time) {
   const dt = lastTime ? (time - lastTime) / 1000 : 0;
   lastTime = time;
 
-  // Recenter ships on first frame in case canvas wasn't sized at init
-  if (firstFrame) {
-    firstFrame = false;
-    if (canvas.width > 0) {
-      ships[0].x = ships[0].spawnX = canvas.width / 4;
-      ships[0].y = ships[0].spawnY = canvas.height / 2;
-      ships[1].x = ships[1].spawnX = 3 * canvas.width / 4;
-      ships[1].y = ships[1].spawnY = canvas.height / 2;
-    }
-  }
-
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawStars(ctx, stars);
 
-  // Update each ship from its player's controls
+  applyWorldTransform();
+  drawWorldBorder();
+
   for (let i = 0; i < ships.length; i++) {
     const ship = ships[i];
-    const actions = getActions(input.keys, PLAYER_BINDINGS[i]);
 
-    tickRespawn(ship, dt);
-    updateShip(ship, actions, canvas.width, canvas.height);
-    tickFireCooldown(ship, dt);
-    if (actions.fire && !ship.destroyed) {
-      fireProjectile(projectiles, ship);
+    if (ship.isLocal) {
+      // Local ship: read from keyboard
+      const bindings = networkMode ? PLAYER_BINDINGS[0] : PLAYER_BINDINGS[i];
+      const actions = getActions(input.keys, bindings);
+
+      const respawned = tickRespawn(ship, dt);
+      if (networkMode && respawned) net.sendRespawn(ship);
+
+      updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
+      tickFireCooldown(ship, dt);
+      if (actions.fire && !ship.destroyed) {
+        if (fireProjectile(projectiles, ship)) {
+          if (networkMode) net.sendFire(ship);
+        }
+      }
+      if (networkMode) net.sendState(ship);
+    } else {
+      // Remote ship: apply interpolated state from network
+      interpolator.apply(ship, dt);
     }
   }
 
-  updateProjectiles(projectiles, dt, canvas.width, canvas.height);
+  updateProjectiles(projectiles, dt, WORLD_WIDTH, WORLD_HEIGHT);
 
-  // Collision: any projectile can destroy any ship
-  for (const ship of ships) {
-    if (!ship.destroyed) {
-      const hitIdx = checkShipProjectileCollision(ship, projectiles);
+  // Collision: projectiles vs ships
+  if (networkMode) {
+    // Only check local ship — each client is authoritative over its own death
+    const localShip = ships.find(s => s.isLocal);
+    if (localShip && !localShip.destroyed) {
+      const hitIdx = checkShipProjectileCollision(localShip, projectiles);
       if (hitIdx >= 0) {
-        spawnExplosion(explosions, ship.x, ship.y, ship.color);
+        spawnExplosion(explosions, localShip.x, localShip.y, localShip.color);
         projectiles.splice(hitIdx, 1);
-        destroyShip(ship);
+        destroyShip(localShip);
+        net.sendDeath(localShip);
       }
     }
-  }
-
-  // Ship-ship collision: both explode
-  if (checkShipShipCollision(ships[0], ships[1])) {
+    // Ship-ship collision: only check local vs others
+    if (localShip && !localShip.destroyed) {
+      for (const other of ships) {
+        if (other === localShip || other.destroyed) continue;
+        if (checkShipShipCollision(localShip, other)) {
+          spawnExplosion(explosions, localShip.x, localShip.y, localShip.color);
+          destroyShip(localShip);
+          net.sendDeath(localShip);
+          break;
+        }
+      }
+    }
+  } else {
+    // Local mode: check all ships vs all projectiles
     for (const ship of ships) {
-      spawnExplosion(explosions, ship.x, ship.y, ship.color);
-      destroyShip(ship);
+      if (!ship.destroyed) {
+        const hitIdx = checkShipProjectileCollision(ship, projectiles);
+        if (hitIdx >= 0) {
+          spawnExplosion(explosions, ship.x, ship.y, ship.color);
+          projectiles.splice(hitIdx, 1);
+          destroyShip(ship);
+        }
+      }
+    }
+    // Ship-ship collision: all pairs
+    for (let i = 0; i < ships.length; i++) {
+      for (let j = i + 1; j < ships.length; j++) {
+        if (checkShipShipCollision(ships[i], ships[j])) {
+          spawnExplosion(explosions, ships[i].x, ships[i].y, ships[i].color);
+          spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color);
+          destroyShip(ships[i]);
+          destroyShip(ships[j]);
+        }
+      }
     }
   }
 
@@ -144,6 +287,8 @@ function gameLoop(time) {
   for (const ship of ships) {
     drawShip(ctx, ship);
   }
+
+  ctx.restore();
 
   requestAnimationFrame(gameLoop);
 }

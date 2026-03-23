@@ -144,6 +144,11 @@ describe('createLuaContext', () => {
       luaCtx.runLua('ship2.color = "#0f0"');
       expect(ships[1].color).toBe('#0f0');
     });
+
+    it('reports world dimensions for screen size', () => {
+      luaCtx.runLuaREPL('screen.width');
+      expect(output).toHaveBeenCalledWith('1920');
+    });
   });
 
   describe('shoot', () => {

@@ -1,4 +1,5 @@
 import { fireProjectile } from './projectiles.js';
+import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
 
 export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
   if (!fengari) {
@@ -8,7 +9,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       runLua(_code) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       runLuaREPL(_line) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       callLuaUpdate(_dt) {},
-      updateScreen() {},
       reset() {},
     };
   }
@@ -25,8 +25,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   // Pre-cache frequently used Lua strings to avoid allocations in hot paths
   const LUA_ON_UPDATE = toLua("onUpdate");
   const LUA_SHIP = toLua("ship");
-  const LUA_SHIP1 = toLua("ship1");
-  const LUA_SHIP2 = toLua("ship2");
+  const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4")];
   const LUA_PRINT = toLua("print");
   const LUA_SHOOT = toLua("shoot");
   const LUA_PROJECTILES = toLua("projectiles");
@@ -38,13 +37,20 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   lua.lua_pop(L, 1);
 
   function exposeShips() {
+    // ship = local player (always ships[0] in the array)
     interop.push(L, ships[0]);
     lua.lua_setglobal(L, LUA_SHIP);
-    interop.push(L, ships[0]);
-    lua.lua_setglobal(L, LUA_SHIP1);
-    if (ships.length > 1) {
-      interop.push(L, ships[1]);
-      lua.lua_setglobal(L, LUA_SHIP2);
+    // Clear all numbered globals first
+    for (const g of LUA_SHIP_GLOBALS) {
+      lua.lua_pushnil(L);
+      lua.lua_setglobal(L, g);
+    }
+    // Set present ships by their ID
+    for (const s of ships) {
+      if (s.id >= 0 && s.id < 4) {
+        interop.push(L, s);
+        lua.lua_setglobal(L, LUA_SHIP_GLOBALS[s.id]);
+      }
     }
   }
 
@@ -58,7 +64,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       ctx.hasOnUpdate = false;
 
       lauxlib.luaL_dostring(L, toLua(
-        `screen = { width = ${canvas.width}, height = ${canvas.height} }`
+        `screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`
       ));
 
       exposeShips();
@@ -125,12 +131,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_pop(L, 1);
     },
 
-    updateScreen() {
-      lauxlib.luaL_dostring(L, toLua(
-        `screen = { width = ${canvas.width}, height = ${canvas.height} }`
-      ));
-    },
-
     callLuaUpdate(dt) {
       if (!ctx.hasOnUpdate) return;
 
@@ -161,7 +161,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   exposeShips();
 
   lauxlib.luaL_dostring(L, toLua(
-    `screen = { width = ${canvas.width}, height = ${canvas.height} }`
+    `screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`
   ));
 
   lua.lua_pushcfunction(L, function (L) {

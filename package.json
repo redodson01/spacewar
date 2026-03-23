@@ -5,15 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "npx serve . -p 8080",
-    "lint": "eslint src/ tests/",
+    "serve": "node server/index.js",
+    "serve:tunnel": "node server/index.js --tunnel",
+    "lint": "eslint src/ server/ tests/",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "dependencies": {
+    "ws": "^8.0.0"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
     "fengari": "^0.1.4",
     "fengari-interop": "^0.1.3",
     "jsdom": "^26.0.0",
+    "localtunnel": "^2.0.0",
     "serve": "^14.0.0",
     "vitest": "^3.0.0"
   }
