@@ -1,3 +1,5 @@
+import { loadReplHistory, saveReplHistory, loadScript, saveScript, MAX_REPL_HISTORY } from './storage.js';
+
 export const EXAMPLES = {
   color: `-- Change the ship color
 ship.color = "#ff0"
@@ -90,6 +92,19 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
     }
   });
 
+  // Restore saved script content
+  const savedScript = loadScript();
+  if (savedScript !== null) {
+    scriptArea.value = savedScript;
+  }
+
+  // Auto-save script content on changes (debounced)
+  let saveTimeout = null;
+  scriptArea.addEventListener('input', () => {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => saveScript(scriptArea.value), 500);
+  });
+
   // Script textarea
   scriptArea.addEventListener('keydown', e => {
     if (e.code === 'Backquote' || e.code === 'Escape') return;
@@ -104,9 +119,14 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
   });
   scriptArea.addEventListener('keyup', e => e.stopPropagation());
 
-  // REPL input
-  const replHistory = [];
-  let replHistoryIdx = -1;
+  // REPL input — restore history from localStorage
+  const replHistory = loadReplHistory();
+  let replHistoryIdx = replHistory.length;
+  let historyTimeout = null;
+  function debouncedSaveHistory() {
+    clearTimeout(historyTimeout);
+    historyTimeout = setTimeout(() => saveReplHistory(replHistory), 300);
+  }
 
   replInput.addEventListener('keydown', e => {
     if (e.code === 'Backquote' || e.code === 'Escape') return;
@@ -116,7 +136,11 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
       const line = replInput.value.trim();
       if (line) {
         replHistory.push(line);
+        if (replHistory.length > MAX_REPL_HISTORY) {
+          replHistory.splice(0, replHistory.length - MAX_REPL_HISTORY);
+        }
         replHistoryIdx = replHistory.length;
+        debouncedSaveHistory();
         luaCtx.runLuaREPL(line);
       }
       replInput.value = '';
@@ -153,6 +177,7 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
   exampleSelect.addEventListener('change', function () {
     if (this.value && EXAMPLES[this.value]) {
       scriptArea.value = EXAMPLES[this.value];
+      saveScript(scriptArea.value);
       this.value = '';
     }
   });
