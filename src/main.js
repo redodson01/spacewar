@@ -1,6 +1,8 @@
-import { createShip, updateShip, drawShip } from './ship.js';
+import { createShip, resetShip, updateShip, drawShip } from './ship.js';
 import { createInputManager } from './input.js';
 import { createStars, resizeStars, drawStars } from './stars.js';
+import { createLuaContext } from './lua-integration.js';
+import { createEditor } from './editor.js';
 
 // Canvas
 const canvas = document.getElementById('game');
@@ -12,13 +14,50 @@ canvas.height = window.innerHeight;
 // Game objects
 const ship = createShip(canvas.width / 2, canvas.height / 2);
 const stars = createStars(canvas.width, canvas.height);
-const input = createInputManager([]);
+const input = createInputManager(['script-input', 'repl-input']);
 input.attach(window);
+
+// Editor DOM elements
+const elements = {
+  editor: document.getElementById('editor'),
+  scriptArea: document.getElementById('script-input'),
+  outputDiv: document.getElementById('output'),
+  hintDiv: document.getElementById('hint'),
+  replInput: document.getElementById('repl-input'),
+  exampleSelect: document.getElementById('example-select'),
+  runBtn: document.getElementById('run-btn'),
+  resetBtn: document.getElementById('reset-btn'),
+  clearBtn: document.getElementById('clear-btn'),
+  canvas,
+};
+
+// Lua integration — use fengari from CDN global if available
+const fengari = (typeof globalThis.fengari !== 'undefined') ? globalThis.fengari : null;
+
+// Editor needs appendOutput for Lua context, but Lua context needs appendOutput too.
+// Create a forwarding function, then wire it up after editor is created.
+let appendOutput = (text, isError) => {
+  // Fallback before editor is ready
+  if (isError) console.error(text);
+  else console.log(text);
+};
+
+let luaCtx;
+try {
+  luaCtx = createLuaContext(fengari, ship, canvas, (text, isError) => appendOutput(text, isError));
+} catch (e) {
+  console.error('Lua init failed:', e);
+  luaCtx = createLuaContext(null, ship, canvas, (text, isError) => appendOutput(text, isError));
+}
+
+const editorAPI = createEditor(elements, luaCtx, ship, () => resetShip(ship, canvas.width / 2, canvas.height / 2));
+appendOutput = editorAPI.appendOutput;
 
 window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   resizeStars(stars, canvas.width, canvas.height);
+  luaCtx.updateScreen();
 });
 
 // Game loop
@@ -32,6 +71,7 @@ function gameLoop(time) {
 
   drawStars(ctx, stars);
   updateShip(ship, input.keys, canvas.width, canvas.height);
+  luaCtx.callLuaUpdate(dt);
   drawShip(ctx, ship, input.keys);
 
   requestAnimationFrame(gameLoop);

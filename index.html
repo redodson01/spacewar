@@ -7,10 +7,181 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; overflow: hidden; font-family: monospace; }
     canvas { display: block; }
+
+    #editor {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 420px;
+      height: 100vh;
+      background: rgba(10, 10, 30, 0.93);
+      border-left: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.2s ease;
+      z-index: 10;
+    }
+    #editor.open { transform: translateX(0); }
+
+    #editor-header {
+      padding: 10px 15px;
+      color: #0ff;
+      font-size: 14px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #editor-header .hint { color: #666; font-size: 11px; }
+
+    #examples { padding: 8px 15px; border-bottom: 1px solid #333; }
+    #examples select {
+      width: 100%;
+      background: #1a1a3a;
+      color: #ccc;
+      border: 1px solid #333;
+      padding: 4px 6px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    #script-input {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.5);
+      color: #eee;
+      border: none;
+      border-left: 3px solid transparent;
+      padding: 15px;
+      font-family: monospace;
+      font-size: 13px;
+      resize: none;
+      outline: none;
+      tab-size: 2;
+    }
+    #script-input:focus {
+      border-left-color: #0ff;
+      background: rgba(0, 40, 50, 0.5);
+    }
+
+    #editor-controls {
+      padding: 8px 15px;
+      border-top: 1px solid #333;
+      display: flex;
+      gap: 8px;
+    }
+    #editor-controls button {
+      background: #1a1a3a;
+      color: #0ff;
+      border: 1px solid #0ff;
+      padding: 5px 12px;
+      font-family: monospace;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    #editor-controls button:hover { background: #0ff; color: #000; }
+
+    #output {
+      height: 120px;
+      overflow-y: auto;
+      padding: 10px 15px;
+      color: #aaa;
+      font-size: 12px;
+      border-top: 1px solid #333;
+      background: rgba(0, 0, 0, 0.3);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .output-error { color: #f55; }
+
+    #repl {
+      display: flex;
+      border-top: 1px solid #333;
+      border-left: 3px solid transparent;
+    }
+    #repl:focus-within {
+      border-left-color: #0ff;
+      background: rgba(0, 40, 50, 0.3);
+    }
+    #repl-prompt {
+      padding: 6px 0 6px 10px;
+      color: #0ff;
+      font-size: 13px;
+      line-height: 22px;
+    }
+    #repl-input {
+      flex: 1;
+      background: transparent;
+      color: #eee;
+      border: none;
+      padding: 6px 10px;
+      font-family: monospace;
+      font-size: 13px;
+      outline: none;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 15px;
+      left: 15px;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 12px;
+      font-family: monospace;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+
+<div id="editor">
+  <div id="editor-header">
+    <span>Lua Script Editor</span>
+    <span class="hint">Ctrl/Cmd+Enter to run</span>
+  </div>
+  <div id="examples">
+    <select id="example-select">
+      <option value="">Load example...</option>
+      <option value="color">Change ship color</option>
+      <option value="speed">Speed demon</option>
+      <option value="rainbow">Rainbow cycling</option>
+      <option value="orbit">Auto-orbit</option>
+    </select>
+  </div>
+  <textarea id="script-input" spellcheck="false">-- Modify the ship directly:
+--   ship.color, ship.thrust, ship.turnSpeed,
+--   ship.friction, ship.radius
+--
+-- Read ship state:
+--   ship.x, ship.y, ship.angle, ship.vx, ship.vy
+--
+-- Override position/angle in onUpdate:
+--   ship.x, ship.y, ship.angle, ship.vx, ship.vy
+--
+-- Screen dimensions:
+--   screen.width, screen.height
+--
+-- Per-frame callback:
+--   function onUpdate(dt) ... end
+
+ship.color = "#ff0"
+print("Ship is now yellow!")
+</textarea>
+  <div id="editor-controls">
+    <button id="run-btn">Run (Ctrl/Cmd+Enter)</button>
+    <button id="reset-btn">Reset Ship</button>
+    <button id="clear-btn">Clear Output</button>
+  </div>
+  <div id="output"></div>
+  <div id="repl">
+    <span id="repl-prompt">&gt;</span>
+    <input id="repl-input" type="text" spellcheck="false" placeholder="ship.color = &quot;#ff0&quot;">
+  </div>
+</div>
+
+<div id="hint">Press ` to toggle script editor</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js" integrity="sha384-aqYZ5bBpWDOXcXQUTRXOLnaFjrqrMw1BiHjk/1cz75A3ytQtdNkW1QfTe7kTlLR6" crossorigin="anonymous"></script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
