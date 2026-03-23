@@ -62,10 +62,20 @@ window.addEventListener('resize', () => {
 
 // Game loop
 let lastTime = 0;
+let firstFrame = true;
 
 function gameLoop(time) {
   const dt = lastTime ? (time - lastTime) / 1000 : 0;
   lastTime = time;
+
+  // Recenter ship on first frame in case canvas wasn't sized at init
+  if (firstFrame) {
+    firstFrame = false;
+    if (ship.x === 0 && ship.y === 0 && canvas.width > 0) {
+      ship.x = canvas.width / 2;
+      ship.y = canvas.height / 2;
+    }
+  }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
