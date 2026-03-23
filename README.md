@@ -48,6 +48,8 @@ Press backtick to open the editor. A single-line REPL is at the bottom for quick
 | `ship.angle` | Facing angle in radians |
 | `ship.vx`, `ship.vy` | Velocity (read/write) |
 | `ship.fireCooldown` | Seconds between shots |
+| `ship.destroyed` | Whether the ship is currently destroyed (read-only) |
+| `ship.respawnTimer` | Seconds until respawn (read-only) |
 | `screen.width`, `screen.height` | Canvas dimensions |
 | `projectiles` | Array of active projectiles |
 | `shoot()` | Fire a projectile from the ship |
@@ -82,12 +84,16 @@ src/
   input.js             Keyboard state manager
   stars.js             Starfield generation and rendering
   projectiles.js       Projectile spawning, movement, and rendering
+  explosions.js        Particle explosion effects
+  collision.js         Collision detection
   lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
   storage.js           localStorage persistence layer
 tests/
   ship.test.js             Ship physics unit tests
   projectiles.test.js      Projectile system unit tests
+  explosions.test.js       Explosion particle unit tests
+  collision.test.js        Collision detection unit tests
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
   stars.test.js            Starfield unit tests
