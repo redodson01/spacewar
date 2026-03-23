@@ -57,4 +57,14 @@ describe('createInputManager', () => {
     fireKey(window, 'keydown', 'ArrowUp');
     expect(input.keys['ArrowUp']).toBeUndefined();
   });
+
+  it('clears all keys on clear()', () => {
+    fireKey(window, 'keydown', 'ArrowUp');
+    fireKey(window, 'keydown', 'Space');
+    expect(input.keys['ArrowUp']).toBe(true);
+    expect(input.keys['Space']).toBe(true);
+    input.clear();
+    expect(input.keys['ArrowUp']).toBe(false);
+    expect(input.keys['Space']).toBe(false);
+  });
 });

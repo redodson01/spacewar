@@ -14,7 +14,7 @@ const fengari = {
 };
 
 function makeShip() {
-  return { x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#0ff' };
+  return { x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#0ff', fireCooldown: 0.25, fireCooldownTimer: 0 };
 }
 
 function makeCanvas() {
@@ -22,13 +22,14 @@ function makeCanvas() {
 }
 
 describe('createLuaContext', () => {
-  let ship, canvas, output, luaCtx;
+  let ship, projectiles, canvas, output, luaCtx;
 
   beforeEach(() => {
     ship = makeShip();
+    projectiles = [];
     canvas = makeCanvas();
     output = vi.fn();
-    luaCtx = createLuaContext(fengari, ship, canvas, output);
+    luaCtx = createLuaContext(fengari, ship, projectiles, canvas, output);
   });
 
   it('initializes successfully', () => {
@@ -36,7 +37,7 @@ describe('createLuaContext', () => {
   });
 
   it('returns a not-ready context when fengari is null', () => {
-    const ctx = createLuaContext(null, ship, canvas, output);
+    const ctx = createLuaContext(null, ship, projectiles, canvas, output);
     expect(ctx.isReady).toBe(false);
   });
 
@@ -121,12 +122,31 @@ describe('createLuaContext', () => {
     });
   });
 
+  describe('shoot', () => {
+    it('adds a projectile via shoot() in Lua', () => {
+      luaCtx.runLua('shoot()');
+      expect(projectiles).toHaveLength(1);
+    });
+
+    it('respects fire cooldown', () => {
+      luaCtx.runLua('shoot(); shoot()');
+      expect(projectiles).toHaveLength(1);
+    });
+  });
+
   describe('reset', () => {
     it('clears onUpdate and re-exposes ship', () => {
       luaCtx.runLua('function onUpdate(dt) end');
       expect(luaCtx.hasOnUpdate).toBe(true);
       luaCtx.reset(ship);
       expect(luaCtx.hasOnUpdate).toBe(false);
+    });
+
+    it('clears projectiles', () => {
+      luaCtx.runLua('shoot()');
+      expect(projectiles).toHaveLength(1);
+      luaCtx.reset(ship);
+      expect(projectiles).toHaveLength(0);
     });
   });
 });

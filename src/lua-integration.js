@@ -1,4 +1,6 @@
-export function createLuaContext(fengari, ship, canvas, appendOutput) {
+import { fireProjectile } from './projectiles.js';
+
+export function createLuaContext(fengari, ship, projectiles, canvas, appendOutput) {
   if (!fengari) {
     return {
       isReady: false,
@@ -24,6 +26,8 @@ export function createLuaContext(fengari, ship, canvas, appendOutput) {
   const LUA_ON_UPDATE = toLua("onUpdate");
   const LUA_SHIP = toLua("ship");
   const LUA_PRINT = toLua("print");
+  const LUA_SHOOT = toLua("shoot");
+  const LUA_PROJECTILES = toLua("projectiles");
 
   // NOTE: luaopen_js gives Lua scripts access to JS globals via the js interop
   // module. This is acceptable for local single-player scripting but must be
@@ -135,6 +139,9 @@ export function createLuaContext(fengari, ship, canvas, appendOutput) {
       lua.lua_setglobal(L, LUA_ON_UPDATE);
       interop.push(L, newShip);
       lua.lua_setglobal(L, LUA_SHIP);
+      projectiles.length = 0;
+      interop.push(L, projectiles);
+      lua.lua_setglobal(L, LUA_PROJECTILES);
     },
   };
 
@@ -158,6 +165,15 @@ export function createLuaContext(fengari, ship, canvas, appendOutput) {
     return 0;
   });
   lua.lua_setglobal(L, LUA_PRINT);
+
+  interop.push(L, projectiles);
+  lua.lua_setglobal(L, LUA_PROJECTILES);
+
+  lua.lua_pushcfunction(L, function () {
+    fireProjectile(projectiles, ship);
+    return 0;
+  });
+  lua.lua_setglobal(L, LUA_SHOOT);
 
   return ctx;
 }
