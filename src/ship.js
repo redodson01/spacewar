@@ -9,6 +9,8 @@ export const SHIP_DEFAULTS = {
   color: '#0ff',
   fireCooldown: 0.25,
   fireCooldownTimer: 0,
+  destroyed: false,
+  respawnTimer: 0,
 };
 
 export function createShip(centerX, centerY) {
@@ -19,7 +21,25 @@ export function resetShip(ship, centerX, centerY) {
   Object.assign(ship, SHIP_DEFAULTS, { x: centerX, y: centerY });
 }
 
+export const RESPAWN_DELAY = 2.0;
+
+export function destroyShip(ship) {
+  ship.destroyed = true;
+  ship.respawnTimer = RESPAWN_DELAY;
+}
+
+export function tickRespawn(ship, dt, centerX, centerY) {
+  if (!ship.destroyed) return false;
+  ship.respawnTimer -= dt;
+  if (ship.respawnTimer <= 0) {
+    resetShip(ship, centerX, centerY);
+    return true;
+  }
+  return false;
+}
+
 export function updateShip(ship, keys, canvasWidth, canvasHeight) {
+  if (ship.destroyed) return;
   if (keys['ArrowLeft'] || keys['KeyA']) ship.angle -= ship.turnSpeed;
   if (keys['ArrowRight'] || keys['KeyD']) ship.angle += ship.turnSpeed;
 
@@ -40,6 +60,7 @@ export function updateShip(ship, keys, canvasWidth, canvasHeight) {
 }
 
 export function drawShip(ctx, ship, keys) {
+  if (ship.destroyed) return;
   const { x, y, angle, radius, color } = ship;
   const nose  = { x: x + Math.cos(angle) * radius,       y: y + Math.sin(angle) * radius };
   const left  = { x: x + Math.cos(angle + 2.4) * radius, y: y + Math.sin(angle + 2.4) * radius };

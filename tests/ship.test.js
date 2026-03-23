@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SHIP_DEFAULTS, createShip, resetShip, updateShip } from '../src/ship.js';
+import { SHIP_DEFAULTS, RESPAWN_DELAY, createShip, resetShip, updateShip, destroyShip, tickRespawn } from '../src/ship.js';
 
 describe('createShip', () => {
   it('creates a ship at the given center position', () => {
@@ -19,6 +19,8 @@ describe('createShip', () => {
     expect(ship.vy).toBe(0);
     expect(ship.fireCooldown).toBe(0.25);
     expect(ship.fireCooldownTimer).toBe(0);
+    expect(ship.destroyed).toBe(false);
+    expect(ship.respawnTimer).toBe(0);
   });
 });
 
@@ -40,6 +42,40 @@ describe('resetShip', () => {
     expect(ship.thrust).toBe(SHIP_DEFAULTS.thrust);
     expect(ship.vx).toBe(0);
     expect(ship.vy).toBe(0);
+  });
+});
+
+describe('destroyShip', () => {
+  it('marks the ship as destroyed with a respawn timer', () => {
+    const ship = createShip(400, 300);
+    destroyShip(ship);
+    expect(ship.destroyed).toBe(true);
+    expect(ship.respawnTimer).toBe(RESPAWN_DELAY);
+  });
+});
+
+describe('tickRespawn', () => {
+  it('is a no-op when not destroyed', () => {
+    const ship = createShip(400, 300);
+    expect(tickRespawn(ship, 0.5, 400, 300)).toBe(false);
+  });
+
+  it('decrements the timer when destroyed', () => {
+    const ship = createShip(400, 300);
+    destroyShip(ship);
+    tickRespawn(ship, 0.5, 400, 300);
+    expect(ship.respawnTimer).toBeCloseTo(RESPAWN_DELAY - 0.5);
+    expect(ship.destroyed).toBe(true);
+  });
+
+  it('resets the ship when timer expires', () => {
+    const ship = createShip(400, 300);
+    destroyShip(ship);
+    const result = tickRespawn(ship, RESPAWN_DELAY + 0.1, 500, 400);
+    expect(result).toBe(true);
+    expect(ship.destroyed).toBe(false);
+    expect(ship.x).toBe(500);
+    expect(ship.y).toBe(400);
   });
 });
 
@@ -145,5 +181,13 @@ describe('updateShip', () => {
     const prevAngle = ship.angle;
     updateShip(ship, { ArrowLeft: true }, W, H);
     expect(ship.angle).toBeCloseTo(prevAngle - 0.2, 10);
+  });
+
+  it('is a no-op when destroyed', () => {
+    ship.vx = 5;
+    ship.destroyed = true;
+    const prevX = ship.x;
+    updateShip(ship, { ArrowUp: true }, W, H);
+    expect(ship.x).toBe(prevX);
   });
 });
