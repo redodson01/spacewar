@@ -176,6 +176,12 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
   });
   replInput.addEventListener('keyup', e => e.stopPropagation());
 
+  // Prevent editor buttons from stealing keyboard focus so that
+  // spacebar (shoot) doesn't inadvertently activate a button.
+  for (const btn of [runBtn, resetBtn, clearBtn, clearDataBtn]) {
+    btn.addEventListener('mousedown', e => e.preventDefault());
+  }
+
   // Buttons
   runBtn.addEventListener('click', () => luaCtx.runLua(scriptArea.value));
   resetBtn.addEventListener('click', () => {
