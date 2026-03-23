@@ -79,11 +79,13 @@ src/
   stars.js             Starfield generation and rendering
   lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
+  storage.js           localStorage persistence layer
 tests/
   ship.test.js             Ship physics unit tests
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
   stars.test.js            Starfield unit tests
+  storage.test.js          Storage persistence unit tests
 ```
 
 ### Scripts
