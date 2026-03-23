@@ -17,6 +17,8 @@ describe('createShip', () => {
     expect(ship.radius).toBe(15);
     expect(ship.vx).toBe(0);
     expect(ship.vy).toBe(0);
+    expect(ship.fireCooldown).toBe(0.25);
+    expect(ship.fireCooldownTimer).toBe(0);
   });
 });
 

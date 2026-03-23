@@ -22,6 +22,15 @@ function onUpdate(dt)
 end
 print("Rainbow mode! Fly around.")`,
 
+  autofire: `-- Auto-fire while moving fast
+function onUpdate(dt)
+  local speed = math.sqrt(ship.vx * ship.vx + ship.vy * ship.vy)
+  if speed > 1 then
+    shoot()
+  end
+end
+print("Auto-fire when moving fast!")`,
+
   orbit: `-- Auto-orbit around screen center
 local t = 0
 function onUpdate(dt)
@@ -33,7 +42,7 @@ end
 print("Orbiting...")`,
 };
 
-export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn) {
+export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn, clearInputFn) {
   let editorOpen = false;
   let lastEditorFocus = null;
 
@@ -41,6 +50,7 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
     editorOpen = !editorOpen;
     editor.classList.toggle('open', editorOpen);
     if (editorOpen) {
+      clearInputFn();
       (lastEditorFocus || replInput).focus();
     } else {
       document.activeElement.blur();

@@ -7,6 +7,8 @@ export const SHIP_DEFAULTS = {
   turnSpeed: 0.05,
   friction: 0.995,
   color: '#0ff',
+  fireCooldown: 0.25,
+  fireCooldownTimer: 0,
 };
 
 export function createShip(centerX, centerY) {

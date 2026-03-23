@@ -22,5 +22,11 @@ export function createInputManager(editorInputIds) {
     win.removeEventListener('keyup', onKeyUp);
   }
 
-  return { keys, attach, detach };
+  function clear() {
+    for (const key in keys) {
+      keys[key] = false;
+    }
+  }
+
+  return { keys, attach, detach, clear };
 }
