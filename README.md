@@ -24,6 +24,7 @@ Open http://localhost:8080 in your browser.
 | Key | Action |
 |---|---|
 | Arrow keys / WASD | Rotate and thrust |
+| Space | Shoot |
 | `` ` `` (backtick) | Toggle script editor |
 | Escape | Close script editor |
 | Ctrl/Cmd+Enter | Run full script |
@@ -46,7 +47,10 @@ Press backtick to open the editor. A single-line REPL is at the bottom for quick
 | `ship.x`, `ship.y` | Position (read/write) |
 | `ship.angle` | Facing angle in radians |
 | `ship.vx`, `ship.vy` | Velocity (read/write) |
+| `ship.fireCooldown` | Seconds between shots |
 | `screen.width`, `screen.height` | Canvas dimensions |
+| `projectiles` | Array of active projectiles |
+| `shoot()` | Fire a projectile from the ship |
 | `print(...)` | Output to the editor console |
 | `function onUpdate(dt) ... end` | Per-frame callback (dt in seconds) |
 
@@ -77,11 +81,13 @@ src/
   ship.js              Ship physics (pure logic, no DOM)
   input.js             Keyboard state manager
   stars.js             Starfield generation and rendering
+  projectiles.js       Projectile spawning, movement, and rendering
   lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
   storage.js           localStorage persistence layer
 tests/
   ship.test.js             Ship physics unit tests
+  projectiles.test.js      Projectile system unit tests
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
   stars.test.js            Starfield unit tests
