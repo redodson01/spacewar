@@ -21,10 +21,24 @@ Open http://localhost:8080 in your browser.
 
 ## Controls
 
+### Player 1
+
 | Key | Action |
 |---|---|
-| Arrow keys / WASD | Rotate and thrust |
+| WASD | Rotate and thrust |
 | Space | Shoot |
+
+### Player 2
+
+| Key | Action |
+|---|---|
+| Arrow keys | Rotate and thrust |
+| `/` (slash) | Shoot |
+
+### General
+
+| Key | Action |
+|---|---|
 | `` ` `` (backtick) | Toggle script editor |
 | Escape | Close script editor |
 | Ctrl/Cmd+Enter | Run full script |
@@ -39,6 +53,8 @@ Press backtick to open the editor. A single-line REPL is at the bottom for quick
 
 | Global | Description |
 |---|---|
+| `ship` / `ship1` | Player 1's ship (alias) |
+| `ship2` | Player 2's ship |
 | `ship.color` | Ship color (CSS color string) |
 | `ship.thrust` | Acceleration per frame |
 | `ship.turnSpeed` | Rotation speed per frame |
@@ -86,7 +102,7 @@ src/
   projectiles.js       Projectile spawning, movement, and rendering
   explosions.js        Particle explosion effects
   collision.js         Collision detection
-  lua-integration.js   Fengari/Lua bridge
+  lua-integration.js   Fengari/Lua bridge (operates on player 1's ship)
   editor.js            Script editor panel UI
   storage.js           localStorage persistence layer
 tests/

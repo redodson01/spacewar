@@ -4,6 +4,7 @@ export function createInputManager(editorInputIds) {
   function onKeyDown(e) {
     if (editorInputIds.includes(e.target.id)) return;
     if (e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
     keys[e.code] = true;
   }
 
@@ -29,4 +30,18 @@ export function createInputManager(editorInputIds) {
   }
 
   return { keys, attach, detach, clear };
+}
+
+export const PLAYER_BINDINGS = [
+  { thrust: 'KeyW', left: 'KeyA', right: 'KeyD', fire: 'Space' },
+  { thrust: 'ArrowUp', left: 'ArrowLeft', right: 'ArrowRight', fire: 'Slash' },
+];
+
+export function getActions(keys, bindings) {
+  return {
+    thrust: !!keys[bindings.thrust],
+    left: !!keys[bindings.left],
+    right: !!keys[bindings.right],
+    fire: !!keys[bindings.fire],
+  };
 }

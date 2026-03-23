@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
 
 function makeShip() {
-  return { x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, fireCooldown: 0.25, fireCooldownTimer: 0 };
+  return { id: 0, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 20, fireCooldown: 0.25, fireCooldownTimer: 0, color: '#0ff' };
 }
 
 describe('createProjectiles', () => {
@@ -35,6 +35,17 @@ describe('fireProjectile', () => {
     fireProjectile(projectiles, ship);
     expect(projectiles[0].vx).toBeCloseTo(1 + PROJECTILE_DEFAULTS.speed);
     expect(projectiles[0].vy).toBeCloseTo(0);
+  });
+
+  it('tags projectile with ownerId from ship', () => {
+    fireProjectile(projectiles, ship);
+    expect(projectiles[0].ownerId).toBe(0);
+  });
+
+  it('uses ship color for projectile', () => {
+    ship.color = '#f0f';
+    fireProjectile(projectiles, ship);
+    expect(projectiles[0].color).toBe('#f0f');
   });
 
   it('resets the ship fire cooldown timer', () => {

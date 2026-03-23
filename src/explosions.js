@@ -14,7 +14,7 @@ export function spawnExplosion(explosions, x, y, color) {
       vy: Math.sin(angle) * speed,
       age: 0,
       lifetime: 0.4 + Math.random() * 0.4,
-      radius: 1 + Math.random() * 2,
+      radius: 2 + Math.random() * 2,
       color,
       opacity: 1,
     });
@@ -39,10 +39,13 @@ export function drawExplosions(ctx, explosions) {
   const prevAlpha = ctx.globalAlpha;
   for (const p of explosions) {
     ctx.globalAlpha = p.opacity;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
     ctx.fillStyle = p.color;
     ctx.fill();
   }
+  ctx.shadowBlur = 0;
   ctx.globalAlpha = prevAlpha;
 }
