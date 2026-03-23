@@ -1,6 +1,6 @@
 import { fireProjectile } from './projectiles.js';
 
-export function createLuaContext(fengari, ship, projectiles, canvas, appendOutput) {
+export function createLuaContext(fengari, ship, projectiles, explosions, canvas, appendOutput) {
   if (!fengari) {
     return {
       isReady: false,
@@ -142,6 +142,7 @@ export function createLuaContext(fengari, ship, projectiles, canvas, appendOutpu
       projectiles.length = 0;
       interop.push(L, projectiles);
       lua.lua_setglobal(L, LUA_PROJECTILES);
+      explosions.length = 0;
     },
   };
 
@@ -170,7 +171,7 @@ export function createLuaContext(fengari, ship, projectiles, canvas, appendOutpu
   lua.lua_setglobal(L, LUA_PROJECTILES);
 
   lua.lua_pushcfunction(L, function () {
-    fireProjectile(projectiles, ship);
+    if (!ship.destroyed) fireProjectile(projectiles, ship);
     return 0;
   });
   lua.lua_setglobal(L, LUA_SHOOT);

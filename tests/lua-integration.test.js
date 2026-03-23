@@ -14,7 +14,7 @@ const fengari = {
 };
 
 function makeShip() {
-  return { x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#0ff', fireCooldown: 0.25, fireCooldownTimer: 0 };
+  return { x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#0ff', fireCooldown: 0.25, fireCooldownTimer: 0, destroyed: false, respawnTimer: 0 };
 }
 
 function makeCanvas() {
@@ -22,14 +22,15 @@ function makeCanvas() {
 }
 
 describe('createLuaContext', () => {
-  let ship, projectiles, canvas, output, luaCtx;
+  let ship, projectiles, explosions, canvas, output, luaCtx;
 
   beforeEach(() => {
     ship = makeShip();
     projectiles = [];
+    explosions = [];
     canvas = makeCanvas();
     output = vi.fn();
-    luaCtx = createLuaContext(fengari, ship, projectiles, canvas, output);
+    luaCtx = createLuaContext(fengari, ship, projectiles, explosions, canvas, output);
   });
 
   it('initializes successfully', () => {
@@ -37,7 +38,7 @@ describe('createLuaContext', () => {
   });
 
   it('returns a not-ready context when fengari is null', () => {
-    const ctx = createLuaContext(null, ship, projectiles, canvas, output);
+    const ctx = createLuaContext(null, ship, projectiles, explosions, canvas, output);
     expect(ctx.isReady).toBe(false);
   });
 
@@ -132,6 +133,12 @@ describe('createLuaContext', () => {
       luaCtx.runLua('shoot(); shoot()');
       expect(projectiles).toHaveLength(1);
     });
+
+    it('does not fire when ship is destroyed', () => {
+      ship.destroyed = true;
+      luaCtx.runLua('shoot()');
+      expect(projectiles).toHaveLength(0);
+    });
   });
 
   describe('reset', () => {
@@ -147,6 +154,12 @@ describe('createLuaContext', () => {
       expect(projectiles).toHaveLength(1);
       luaCtx.reset(ship);
       expect(projectiles).toHaveLength(0);
+    });
+
+    it('clears explosions', () => {
+      explosions.push({ x: 0, y: 0 });
+      luaCtx.reset(ship);
+      expect(explosions).toHaveLength(0);
     });
   });
 });

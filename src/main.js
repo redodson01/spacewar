@@ -1,7 +1,9 @@
-import { createShip, resetShip, updateShip, drawShip } from './ship.js';
+import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn } from './ship.js';
 import { createInputManager } from './input.js';
 import { createStars, resizeStars, drawStars } from './stars.js';
 import { createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
+import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } from './explosions.js';
+import { checkShipProjectileCollision } from './collision.js';
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
 
@@ -16,6 +18,7 @@ canvas.height = window.innerHeight;
 const ship = createShip(canvas.width / 2, canvas.height / 2);
 const stars = createStars(canvas.width, canvas.height);
 const projectiles = createProjectiles();
+const explosions = createExplosions();
 const input = createInputManager(['script-input', 'repl-input']);
 input.attach(window);
 
@@ -47,13 +50,16 @@ let appendOutput = (text, isError) => {
 
 let luaCtx;
 try {
-  luaCtx = createLuaContext(fengari, ship, projectiles, canvas, (text, isError) => appendOutput(text, isError));
+  luaCtx = createLuaContext(fengari, ship, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 } catch (e) {
   console.error('Lua init failed:', e);
-  luaCtx = createLuaContext(null, ship, projectiles, canvas, (text, isError) => appendOutput(text, isError));
+  luaCtx = createLuaContext(null, ship, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 }
 
-const editorAPI = createEditor(elements, luaCtx, ship, () => resetShip(ship, canvas.width / 2, canvas.height / 2), () => input.clear());
+const editorAPI = createEditor(elements, luaCtx, ship, () => {
+  resetShip(ship, canvas.width / 2, canvas.height / 2);
+  explosions.length = 0;
+}, () => input.clear());
 appendOutput = editorAPI.appendOutput;
 
 window.addEventListener('resize', () => {
@@ -83,13 +89,26 @@ function gameLoop(time) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawStars(ctx, stars);
+  tickRespawn(ship, dt, canvas.width / 2, canvas.height / 2);
   updateShip(ship, input.keys, canvas.width, canvas.height);
   tickFireCooldown(ship, dt);
-  if (input.keys['Space']) {
+  if (input.keys['Space'] && !ship.destroyed) {
     fireProjectile(projectiles, ship);
   }
   updateProjectiles(projectiles, dt, canvas.width, canvas.height);
+
+  if (!ship.destroyed) {
+    const hitIdx = checkShipProjectileCollision(ship, projectiles);
+    if (hitIdx >= 0) {
+      spawnExplosion(explosions, ship.x, ship.y, ship.color);
+      projectiles.splice(hitIdx, 1);
+      destroyShip(ship);
+    }
+  }
+
   luaCtx.callLuaUpdate(dt);
+  updateExplosions(explosions, dt);
+  drawExplosions(ctx, explosions);
   drawProjectiles(ctx, projectiles);
   drawShip(ctx, ship, input.keys);
 
