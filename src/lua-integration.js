@@ -1,6 +1,6 @@
 import { fireProjectile } from './projectiles.js';
 
-export function createLuaContext(fengari, ship, projectiles, explosions, canvas, appendOutput) {
+export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
   if (!fengari) {
     return {
       isReady: false,
@@ -9,7 +9,7 @@ export function createLuaContext(fengari, ship, projectiles, explosions, canvas,
       runLuaREPL(_line) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       callLuaUpdate(_dt) {},
       updateScreen() {},
-      reset(_newShip) {},
+      reset() {},
     };
   }
 
@@ -25,6 +25,8 @@ export function createLuaContext(fengari, ship, projectiles, explosions, canvas,
   // Pre-cache frequently used Lua strings to avoid allocations in hot paths
   const LUA_ON_UPDATE = toLua("onUpdate");
   const LUA_SHIP = toLua("ship");
+  const LUA_SHIP1 = toLua("ship1");
+  const LUA_SHIP2 = toLua("ship2");
   const LUA_PRINT = toLua("print");
   const LUA_SHOOT = toLua("shoot");
   const LUA_PROJECTILES = toLua("projectiles");
@@ -34,6 +36,17 @@ export function createLuaContext(fengari, ship, projectiles, explosions, canvas,
   // restricted before running untrusted scripts (e.g., multiplayer).
   lauxlib.luaL_requiref(L, toLua("js"), interop.luaopen_js, 1);
   lua.lua_pop(L, 1);
+
+  function exposeShips() {
+    interop.push(L, ships[0]);
+    lua.lua_setglobal(L, LUA_SHIP);
+    interop.push(L, ships[0]);
+    lua.lua_setglobal(L, LUA_SHIP1);
+    if (ships.length > 1) {
+      interop.push(L, ships[1]);
+      lua.lua_setglobal(L, LUA_SHIP2);
+    }
+  }
 
   const ctx = {
     isReady: true,
@@ -48,8 +61,7 @@ export function createLuaContext(fengari, ship, projectiles, explosions, canvas,
         `screen = { width = ${canvas.width}, height = ${canvas.height} }`
       ));
 
-      interop.push(L, ship);
-      lua.lua_setglobal(L, LUA_SHIP);
+      exposeShips();
 
       const status = lauxlib.luaL_dostring(L, toLua(code));
       if (status !== lua.LUA_OK) {
@@ -133,12 +145,11 @@ export function createLuaContext(fengari, ship, projectiles, explosions, canvas,
       }
     },
 
-    reset(newShip) {
+    reset() {
       ctx.hasOnUpdate = false;
       lua.lua_pushnil(L);
       lua.lua_setglobal(L, LUA_ON_UPDATE);
-      interop.push(L, newShip);
-      lua.lua_setglobal(L, LUA_SHIP);
+      exposeShips();
       projectiles.length = 0;
       interop.push(L, projectiles);
       lua.lua_setglobal(L, LUA_PROJECTILES);
@@ -147,8 +158,7 @@ export function createLuaContext(fengari, ship, projectiles, explosions, canvas,
   };
 
   // Initial API exposure
-  interop.push(L, ship);
-  lua.lua_setglobal(L, LUA_SHIP);
+  exposeShips();
 
   lauxlib.luaL_dostring(L, toLua(
     `screen = { width = ${canvas.width}, height = ${canvas.height} }`
@@ -171,7 +181,7 @@ export function createLuaContext(fengari, ship, projectiles, explosions, canvas,
   lua.lua_setglobal(L, LUA_PROJECTILES);
 
   lua.lua_pushcfunction(L, function () {
-    if (!ship.destroyed) fireProjectile(projectiles, ship);
+    if (!ships[0].destroyed) fireProjectile(projectiles, ships[0]);
     return 0;
   });
   lua.lua_setglobal(L, LUA_SHOOT);

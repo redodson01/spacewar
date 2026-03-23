@@ -3,7 +3,7 @@ import { createInputManager, PLAYER_BINDINGS, getActions } from './input.js';
 import { createStars, resizeStars, drawStars } from './stars.js';
 import { createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
 import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } from './explosions.js';
-import { checkShipProjectileCollision } from './collision.js';
+import { checkShipProjectileCollision, checkShipShipCollision } from './collision.js';
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
 
@@ -15,7 +15,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // Game objects
-const PLAYER_COLORS = ['#0ff', '#f0f'];
+const PLAYER_COLORS = ['#f00', '#00f'];
 
 const ships = [
   createShip(0, canvas.width / 4, canvas.height / 2, PLAYER_COLORS[0]),
@@ -57,13 +57,12 @@ let appendOutput = (text, isError) => {
   else console.log(text);
 };
 
-// Lua context operates on player 1's ship
 let luaCtx;
 try {
-  luaCtx = createLuaContext(fengari, ships[0], projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaCtx = createLuaContext(fengari, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 } catch (e) {
   console.error('Lua init failed:', e);
-  luaCtx = createLuaContext(null, ships[0], projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaCtx = createLuaContext(null, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 }
 
 const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
@@ -127,6 +126,14 @@ function gameLoop(time) {
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
       }
+    }
+  }
+
+  // Ship-ship collision: both explode
+  if (checkShipShipCollision(ships[0], ships[1])) {
+    for (const ship of ships) {
+      spawnExplosion(explosions, ship.x, ship.y, ship.color);
+      destroyShip(ship);
     }
   }
 

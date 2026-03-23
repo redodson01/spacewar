@@ -13,8 +13,8 @@ const fengari = {
   to_jsstring: fengariLib.to_jsstring,
 };
 
-function makeShip() {
-  return { id: 0, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#0ff', fireCooldown: 0.25, fireCooldownTimer: 0, destroyed: false, respawnTimer: 0 };
+function makeShip(id = 0) {
+  return { id, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 15, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#f00', fireCooldown: 0.25, fireCooldownTimer: 0, destroyed: false, respawnTimer: 0 };
 }
 
 function makeCanvas() {
@@ -22,15 +22,16 @@ function makeCanvas() {
 }
 
 describe('createLuaContext', () => {
-  let ship, projectiles, explosions, canvas, output, luaCtx;
+  let ships, projectiles, explosions, canvas, output, luaCtx;
 
   beforeEach(() => {
-    ship = makeShip();
+    ships = [makeShip(0), makeShip(1)];
+    ships[1].color = '#00f';
     projectiles = [];
     explosions = [];
     canvas = makeCanvas();
     output = vi.fn();
-    luaCtx = createLuaContext(fengari, ship, projectiles, explosions, canvas, output);
+    luaCtx = createLuaContext(fengari, ships, projectiles, explosions, canvas, output);
   });
 
   it('initializes successfully', () => {
@@ -38,7 +39,7 @@ describe('createLuaContext', () => {
   });
 
   it('returns a not-ready context when fengari is null', () => {
-    const ctx = createLuaContext(null, ship, projectiles, explosions, canvas, output);
+    const ctx = createLuaContext(null, ships, projectiles, explosions, canvas, output);
     expect(ctx.isReady).toBe(false);
   });
 
@@ -123,6 +124,28 @@ describe('createLuaContext', () => {
     });
   });
 
+  describe('ship globals', () => {
+    it('exposes ship as alias for ship1 (player 1)', () => {
+      luaCtx.runLuaREPL('ship.color');
+      expect(output).toHaveBeenCalledWith(ships[0].color);
+    });
+
+    it('exposes ship1 as player 1', () => {
+      luaCtx.runLuaREPL('ship1.color');
+      expect(output).toHaveBeenCalledWith(ships[0].color);
+    });
+
+    it('exposes ship2 as player 2', () => {
+      luaCtx.runLuaREPL('ship2.color');
+      expect(output).toHaveBeenCalledWith(ships[1].color);
+    });
+
+    it('can modify ship2 properties', () => {
+      luaCtx.runLua('ship2.color = "#0f0"');
+      expect(ships[1].color).toBe('#0f0');
+    });
+  });
+
   describe('shoot', () => {
     it('adds a projectile via shoot() in Lua', () => {
       luaCtx.runLua('shoot()');
@@ -135,30 +158,30 @@ describe('createLuaContext', () => {
     });
 
     it('does not fire when ship is destroyed', () => {
-      ship.destroyed = true;
+      ships[0].destroyed = true;
       luaCtx.runLua('shoot()');
       expect(projectiles).toHaveLength(0);
     });
   });
 
   describe('reset', () => {
-    it('clears onUpdate and re-exposes ship', () => {
+    it('clears onUpdate and re-exposes ships', () => {
       luaCtx.runLua('function onUpdate(dt) end');
       expect(luaCtx.hasOnUpdate).toBe(true);
-      luaCtx.reset(ship);
+      luaCtx.reset();
       expect(luaCtx.hasOnUpdate).toBe(false);
     });
 
     it('clears projectiles', () => {
       luaCtx.runLua('shoot()');
       expect(projectiles).toHaveLength(1);
-      luaCtx.reset(ship);
+      luaCtx.reset();
       expect(projectiles).toHaveLength(0);
     });
 
     it('clears explosions', () => {
       explosions.push({ x: 0, y: 0 });
-      luaCtx.reset(ship);
+      luaCtx.reset();
       expect(explosions).toHaveLength(0);
     });
   });

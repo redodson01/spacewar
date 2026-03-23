@@ -53,6 +53,8 @@ Press backtick to open the editor. A single-line REPL is at the bottom for quick
 
 | Global | Description |
 |---|---|
+| `ship` / `ship1` | Player 1's ship (alias) |
+| `ship2` | Player 2's ship |
 | `ship.color` | Ship color (CSS color string) |
 | `ship.thrust` | Acceleration per frame |
 | `ship.turnSpeed` | Rotation speed per frame |
