@@ -267,13 +267,14 @@ chatInput.addEventListener('keydown', (e) => {
           const chatOutputs = [];
           appendOutput = (t, isError) => {
             origAppendOutput(t, isError);
-            if (!t.startsWith('> ')) chatOutputs.push(t);
+            if (!t.startsWith('> ')) chatOutputs.push({ text: t, isError });
           };
           luaCtx.runLuaREPL(text.slice(1));
           appendOutput = origAppendOutput;
-          for (const line of chatOutputs) {
-            chat.addMessage('', '#2aa198', line);
-            net.sendChat('', '#2aa198', line);
+          for (const o of chatOutputs) {
+            const color = o.isError ? '#dc322f' : '#2aa198';
+            chat.addMessage('', color, o.text);
+            net.sendChat('', color, o.text);
           }
         } else {
           chat.addMessage('', '#dc322f', 'Only the host can run /commands.');

@@ -268,9 +268,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       const id = onAIAdd();
       if (id >= 0) {
         exposeShips();
-        lua.lua_pushinteger(L, id + 1); // 1-indexed for Lua
         appendOutput(`Bot ${id + 1} added.`);
-        return 1;
+        return 0;
       } else {
         appendOutput('No free slots.', true);
       }
