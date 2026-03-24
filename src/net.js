@@ -8,6 +8,7 @@ export function createNetClient() {
   const callbacks = {
     join: null,
     leave: null,
+    stateOverride: null,
     state: null,
     fire: null,
     death: null,
@@ -79,6 +80,9 @@ export function createNetClient() {
             break;
           case 'nameChange':
             if (callbacks.nameChange) callbacks.nameChange(msg.playerId, msg.newName);
+            break;
+          case 'stateOverride':
+            if (callbacks.stateOverride) callbacks.stateOverride(msg.targetId, msg);
             break;
         }
       };
@@ -180,6 +184,7 @@ export function createNetClient() {
     onRespawn(cb) { callbacks.respawn = cb; },
     onChat(cb) { callbacks.chat = cb; },
     onNameChange(cb) { callbacks.nameChange = cb; },
+    onStateOverride(cb) { callbacks.stateOverride = cb; },
   };
 }
 
@@ -188,7 +193,6 @@ import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
 
 export function createInterpolator() {
   const states = new Map(); // id -> { prev, next, t }
-
   function onState(id, snapshot) {
     const entry = states.get(id);
     if (entry) {
