@@ -1,5 +1,5 @@
 const MAX_MESSAGES = 20;
-const FADE_DURATION = 5; // seconds before messages start fading
+const FADE_DURATION = 10; // seconds before messages start fading
 const FADE_TIME = 2; // seconds to fully fade out
 
 export function createChat() {
