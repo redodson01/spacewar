@@ -2,7 +2,7 @@ export function createLeaderboard() {
   const entries = new Map(); // id -> { name, color, score }
 
   function addPlayer(id, name, color) {
-    entries.set(id, { name, color, score: 0 });
+    entries.set(id, { id, name, color, score: 0 });
   }
 
   function removePlayer(id) {
@@ -26,7 +26,7 @@ export function createLeaderboard() {
   }
 
   function getScores() {
-    return [...entries.values()].sort((a, b) => b.score - a.score);
+    return [...entries.values()].sort((a, b) => b.score - a.score || a.id - b.id);
   }
 
   function draw(ctx) {
@@ -39,11 +39,14 @@ export function createLeaderboard() {
     let y = 25;
 
     ctx.fillStyle = '#888';
+    ctx.shadowColor = '#888';
+    ctx.shadowBlur = 6;
     ctx.fillText('SCORE', x, y);
     y += 20;
 
     for (const entry of scores) {
       ctx.fillStyle = entry.color;
+      ctx.shadowColor = entry.color;
       const scoreStr = String(entry.score).padStart(4, ' ');
       ctx.textAlign = 'right';
       ctx.fillText(scoreStr, x + 40, y);
@@ -51,6 +54,8 @@ export function createLeaderboard() {
       ctx.fillText(`  ${entry.name}`, x + 40, y);
       y += 18;
     }
+
+    ctx.shadowBlur = 0;
   }
 
   return { addPlayer, removePlayer, clear, recordKill, recordCollision, getScores, draw };
