@@ -8,6 +8,7 @@ import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
 import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS } from './world.js';
 import { createLeaderboard } from './leaderboard.js';
+import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
 
 // Canvas
@@ -22,9 +23,10 @@ const ships = [];
 const stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
-const input = createInputManager(['script-input', 'repl-input']);
+const input = createInputManager(['script-input', 'repl-input', 'chat-input']);
 input.attach(window);
 const leaderboard = createLeaderboard();
+const chat = createChat();
 
 // Networking
 const net = createNetClient();
@@ -179,6 +181,51 @@ net.onLuaUpdate((updates) => {
   }
 });
 
+net.onChat((name, color, text) => {
+  chat.addMessage(name, color, text);
+});
+
+// Chat input handling
+const chatBar = document.getElementById('chat-bar');
+const chatInput = document.getElementById('chat-input');
+let chatOpen = false;
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter' && !chatOpen && networkMode && e.target === document.body) {
+    e.preventDefault();
+    chatOpen = true;
+    chatBar.classList.add('open');
+    chatInput.focus();
+    input.clear();
+  }
+});
+
+chatInput.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter') {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (text) {
+      const localShip = ships.find(s => s.isLocal);
+      const name = localShip ? localShip.name : 'Player';
+      const color = localShip ? localShip.config.color : '#839496';
+      chat.addMessage(name, color, text);
+      net.sendChat(name, color, text);
+    }
+    chatInput.value = '';
+    chatOpen = false;
+    chatBar.classList.remove('open');
+    chatInput.blur();
+  } else if (e.code === 'Escape') {
+    e.preventDefault();
+    chatInput.value = '';
+    chatOpen = false;
+    chatBar.classList.remove('open');
+    chatInput.blur();
+  }
+  e.stopPropagation();
+});
+chatInput.addEventListener('keyup', (e) => e.stopPropagation());
+
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
 luaCtx.setOnShipUpdate((updates) => {
   for (const u of updates) leaderboard.updateColor(u.id, u.color);
@@ -321,7 +368,9 @@ function gameLoop(time) {
     drawShip(ctx, ship);
   }
 
-  // Leaderboard in world space
+  // Chat and leaderboard in world space
+  chat.update(dt);
+  chat.draw(ctx, WORLD_WIDTH, WORLD_HEIGHT);
   leaderboard.draw(ctx);
 
   ctx.restore();

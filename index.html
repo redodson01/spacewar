@@ -129,6 +129,27 @@
       font-family: monospace;
       pointer-events: none;
     }
+
+    #chat-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      display: none;
+      z-index: 20;
+    }
+    #chat-bar.open { display: flex; }
+    #chat-input {
+      flex: 1;
+      background: rgba(0, 43, 54, 0.9);
+      color: #93a1a1;
+      border: none;
+      border-top: 1px solid #073642;
+      padding: 8px 15px;
+      font-family: monospace;
+      font-size: 14px;
+      outline: none;
+    }
   </style>
 </head>
 <body>
@@ -174,6 +195,10 @@ print("Ship is now yellow!")
     <span id="repl-prompt">&gt;</span>
     <input id="repl-input" type="text" spellcheck="false" placeholder="ship.color = &quot;#ff0&quot;">
   </div>
+</div>
+
+<div id="chat-bar">
+  <input id="chat-input" type="text" placeholder="Type a message..." maxlength="200">
 </div>
 
 <div id="hint">P1: WASD + Space | P2: Arrows + / | ` for editor</div>
