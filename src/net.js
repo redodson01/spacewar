@@ -18,9 +18,9 @@ export function createNetClient() {
     nameChange: null,
   };
 
-  function connect(name) {
+  function connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}?name=${encodeURIComponent(name || '')}`;
+    const url = `${protocol}//${window.location.host}`;
 
     return new Promise((resolve) => {
       try {
@@ -48,7 +48,7 @@ export function createNetClient() {
             localId = msg.id;
             connected = true;
             clearTimeout(timeout);
-            resolve({ id: msg.id, name: msg.name, players: msg.players, scores: msg.scores, worldWidth: msg.worldWidth, worldHeight: msg.worldHeight });
+            resolve({ id: msg.id, name: msg.name, players: msg.players, scores: msg.scores, worldWidth: msg.worldWidth, worldHeight: msg.worldHeight, luaConfig: msg.luaConfig });
             break;
           case 'join':
             if (callbacks.join) callbacks.join(msg.id, msg.name);

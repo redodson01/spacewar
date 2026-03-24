@@ -39,6 +39,7 @@ function nextId() {
 }
 
 const scores = new Map(); // id -> score
+let lastLuaUpdate = null; // latest luaUpdate payload for new players
 
 function broadcast(sender, message) {
   const data = typeof message === 'string' ? message : JSON.stringify(message);
@@ -111,6 +112,7 @@ wss.on('connection', (ws, req) => {
     scores: [...scores.entries()].map(([sid, score]) => ({ id: sid, score })),
     worldWidth: WORLD_WIDTH,
     worldHeight: WORLD_HEIGHT,
+    luaConfig: lastLuaUpdate,
   }));
 
   // Announce to others
@@ -123,6 +125,9 @@ wss.on('connection', (ws, req) => {
     // Track scores from death events
     try {
       const msg = JSON.parse(str);
+      if (msg.type === 'luaUpdate') {
+        lastLuaUpdate = msg.updates;
+      }
       if (msg.type === 'death') {
         if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
           scores.set(msg.killerId, scores.get(msg.killerId) + 1);
