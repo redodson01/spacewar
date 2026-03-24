@@ -47,7 +47,7 @@ export function createNetClient() {
             localId = msg.id;
             connected = true;
             clearTimeout(timeout);
-            resolve({ id: msg.id, name: msg.name, players: msg.players, scores: msg.scores });
+            resolve({ id: msg.id, name: msg.name, players: msg.players, scores: msg.scores, worldWidth: msg.worldWidth, worldHeight: msg.worldHeight });
             break;
           case 'join':
             if (callbacks.join) callbacks.join(msg.id, msg.name);

@@ -6,7 +6,7 @@ import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } fr
 import { checkShipProjectileCollision, checkShipShipCollision } from './collision.js';
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
-import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS } from './world.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, setWorldSize } from './world.js';
 import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
@@ -20,7 +20,7 @@ canvas.height = window.innerHeight;
 
 // Game objects
 const ships = [];
-const stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
+let stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
 const input = createInputManager(['script-input', 'repl-input', 'chat-input']);
@@ -238,6 +238,12 @@ net.connect(playerName || 'Player').then((welcome) => {
   if (!welcome) return;
 
   networkMode = true;
+
+  // Apply server world size
+  if (welcome.worldWidth && welcome.worldHeight) {
+    setWorldSize(welcome.worldWidth, welcome.worldHeight);
+    stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
+  }
 
   // Rebuild ships and leaderboard for network mode
   ships.length = 0;
