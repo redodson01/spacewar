@@ -274,7 +274,7 @@ chatInput.addEventListener('keydown', (e) => {
           for (const o of chatOutputs) {
             const color = o.isError ? '#dc322f' : '#2aa198';
             chat.addMessage('', color, o.text);
-            net.sendChat('', color, o.text);
+            if (!o.isError) net.sendChat('', color, o.text);
           }
         } else {
           chat.addMessage('', '#dc322f', 'Only the host can run /commands.');
