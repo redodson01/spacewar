@@ -145,7 +145,7 @@ const SEND_INTERVAL = 50; // 20Hz
 const lastAISendTimes = new Map();
 
 setInterval(() => {
-  const dt = 1 / 30; // 30Hz tick
+  const dt = 1 / 60; // 60Hz tick to match client frame rate
 
   for (const ship of ships) {
     if (!ship.isAI || aiIds.get(ship.id) !== 'server') continue;
@@ -223,7 +223,7 @@ setInterval(() => {
     }
   }
 
-  // Update server projectiles (for AI dodging awareness)
+  // Update server projectiles
   for (let i = serverProjectiles.length - 1; i >= 0; i--) {
     const p = serverProjectiles[i];
     p.x += p.vx; p.y += p.vy; p.age += dt;
@@ -231,7 +231,65 @@ setInterval(() => {
       serverProjectiles.splice(i, 1);
     }
   }
-}, 1000 / 30); // 30Hz
+
+  // Collision detection for server AI ships
+  for (const ship of ships) {
+    if (!ship.isAI || aiIds.get(ship.id) !== 'server') continue;
+    if (ship.state.destroyed || ship.state.invulnerableTimer > 0) continue;
+
+    for (let i = 0; i < serverProjectiles.length; i++) {
+      const p = serverProjectiles[i];
+      if (p.ownerId === ship.id) continue; // no self-fire
+      const dx = ship.state.x - p.x;
+      const dy = ship.state.y - p.y;
+      if (Math.sqrt(dx * dx + dy * dy) < ship.config.radius + 4) {
+        // Hit!
+        ship.state.destroyed = true;
+        ship.state.respawnTimer = 2.0;
+        serverProjectiles.splice(i, 1);
+        broadcastAll({
+          type: 'death', id: ship.id,
+          x: ship.state.x, y: ship.state.y,
+          killerId: p.ownerId, cause: 'projectile',
+        });
+        // Score
+        if (scores.has(p.ownerId)) {
+          scores.set(p.ownerId, scores.get(p.ownerId) + 1);
+        }
+        broadcastScores();
+        const killer = ships.find(s => s.id === p.ownerId);
+        console.log(`[kill] ${killer?.name || 'Player ' + (p.ownerId + 1)} killed ${ship.name || 'Bot ' + (ship.id + 1)}`);
+        break;
+      }
+    }
+  }
+
+  // Ship-ship collision for server AI
+  for (const ship of ships) {
+    if (!ship.isAI || aiIds.get(ship.id) !== 'server') continue;
+    if (ship.state.destroyed || ship.state.invulnerableTimer > 0) continue;
+
+    for (const other of ships) {
+      if (other === ship || other.state.destroyed || other.state.invulnerableTimer > 0) continue;
+      const dx = ship.state.x - other.state.x;
+      const dy = ship.state.y - other.state.y;
+      if (Math.sqrt(dx * dx + dy * dy) < ship.config.radius + (other.config?.radius || 20)) {
+        ship.state.destroyed = true;
+        ship.state.respawnTimer = 2.0;
+        broadcastAll({
+          type: 'death', id: ship.id,
+          x: ship.state.x, y: ship.state.y,
+          killerId: null, cause: 'collision',
+        });
+        if (scores.has(ship.id)) {
+          scores.set(ship.id, scores.get(ship.id) - 1);
+        }
+        broadcastScores();
+        break;
+      }
+    }
+  }
+}, 1000 / 60); // 60Hz
 
 // --- HTTP server ---
 const httpServer = createServer(async (req, res) => {
