@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS } from '../src/world.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, MAX_PLAYERS } from '../src/world.js';
 
 describe('world constants', () => {
   it('defines world dimensions', () => {
@@ -7,13 +7,19 @@ describe('world constants', () => {
     expect(WORLD_HEIGHT).toBe(1080);
   });
 
-  it('defines 4 player colors', () => {
-    expect(PLAYER_COLORS).toHaveLength(4);
-    expect(PLAYER_COLORS).toEqual(['#dc322f', '#859900', '#268bd2', '#b58900']);
+  it('supports 8 players', () => {
+    expect(MAX_PLAYERS).toBe(8);
   });
 
-  it('defines 4 spawn positions within world bounds', () => {
-    expect(SPAWN_POSITIONS).toHaveLength(4);
+  it('defines 8 player colors', () => {
+    expect(PLAYER_COLORS).toHaveLength(8);
+    expect(PLAYER_COLORS[0]).toBe('#dc322f'); // red
+    expect(PLAYER_COLORS[4]).toBe('#2aa198'); // cyan
+    expect(PLAYER_COLORS[7]).toBe('#6c71c4'); // violet
+  });
+
+  it('defines 8 spawn positions within world bounds', () => {
+    expect(SPAWN_POSITIONS).toHaveLength(8);
     for (const spawn of SPAWN_POSITIONS) {
       expect(spawn.x).toBeGreaterThan(0);
       expect(spawn.x).toBeLessThan(WORLD_WIDTH);

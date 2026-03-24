@@ -35,6 +35,8 @@ export function createShip(id, x, y, color = CONFIG_DEFAULTS.color) {
     spawnY: y,
     spawnAngle: undefined,
     isLocal: false,
+    isAI: false,
+    controlBinding: undefined,
   };
 }
 

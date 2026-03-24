@@ -26,6 +26,8 @@ function createShipProxy(ship) {
 export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
   let onShipUpdate = null;
   let onNameChange = null;
+  let onAIAdd = null;
+  let onAIRemove = null;
 
   if (!fengari) {
     return {
@@ -37,6 +39,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       reset() {},
       setOnShipUpdate(cb) { onShipUpdate = cb; },
       setOnNameChange(cb) { onNameChange = cb; },
+      setOnAIAdd(cb) { onAIAdd = cb; },
+      setOnAIRemove(cb) { onAIRemove = cb; },
       broadcastShipUpdates() {},
     };
   }
@@ -52,7 +56,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   lualib.luaL_openlibs(L);
   const LUA_ON_UPDATE = toLua("onUpdate");
   const LUA_SHIP = toLua("ship");
-  const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4")];
+  const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4"), toLua("ship5"), toLua("ship6"), toLua("ship7"), toLua("ship8")];
   const LUA_PRINT = toLua("print");
   const LUA_SHOOT = toLua("shoot");
   const LUA_PROJECTILES = toLua("projectiles");
@@ -72,7 +76,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     }
     // Set present ships by their ID
     for (const s of ships) {
-      if (s.id >= 0 && s.id < 4) {
+      if (s.id >= 0 && s.id < 8) {
         interop.push(L, createShipProxy(s));
         lua.lua_setglobal(L, LUA_SHIP_GLOBALS[s.id]);
       }
@@ -204,6 +208,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
 
     setOnShipUpdate(cb) { onShipUpdate = cb; },
     setOnNameChange(cb) { onNameChange = cb; },
+    setOnAIAdd(cb) { onAIAdd = cb; },
+    setOnAIRemove(cb) { onAIRemove = cb; },
     broadcastShipUpdates,
   };
 
@@ -256,6 +262,41 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   });
   lua.lua_setglobal(L, LUA_SET_NAME);
 
+  const LUA_ADD_AI = toLua("addAI");
+  lua.lua_pushcfunction(L, function () {
+    if (onAIAdd) {
+      const id = onAIAdd();
+      if (id >= 0) {
+        exposeShips();
+        appendOutput(`Bot ${id + 1} added.`);
+        return 0;
+      } else {
+        appendOutput('No free slots.', true);
+      }
+    }
+    return 0;
+  });
+  lua.lua_setglobal(L, LUA_ADD_AI);
+
+  const LUA_REMOVE_AI = toLua("removeAI");
+  lua.lua_pushcfunction(L, function (L) {
+    const shipNum = lua.lua_gettop(L) >= 1 ? lua.lua_tointeger(L, 1) : 0;
+    if (shipNum < 1 || shipNum > 8) {
+      appendOutput('Usage: removeAI(shipNum) — e.g. removeAI(3)', true);
+      return 0;
+    }
+    const ship = ships.find(s => s.id === shipNum - 1);
+    if (!ship || !ship.isAI) {
+      appendOutput(`Player ${shipNum} is not an AI.`, true);
+      return 0;
+    }
+    if (onAIRemove) onAIRemove(ship.id);
+    exposeShips();
+    appendOutput(`Bot ${shipNum} removed.`);
+    return 0;
+  });
+  lua.lua_setglobal(L, LUA_REMOVE_AI);
+
   const LUA_HELP = toLua("help");
   lua.lua_pushcfunction(L, function () {
     appendOutput([
@@ -289,6 +330,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       '',
       'FUNCTIONS',
       '  shoot()           Fire a projectile from your ship',
+      '  addAI()           Add an AI opponent (returns ship number)',
+      '  removeAI(n)       Remove AI player n',
       '  setName(n, name)  Rename player n — e.g. setName(1, "Alice")',
       '  print(...)        Output to this console',
       '  help()            Show this reference',

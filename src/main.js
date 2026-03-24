@@ -6,7 +6,8 @@ import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } fr
 import { checkShipProjectileCollision, checkShipShipCollision } from './collision.js';
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
-import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, setWorldSize } from './world.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, MAX_PLAYERS, setWorldSize } from './world.js';
+import { getAIActions } from './ai.js';
 import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
@@ -42,15 +43,34 @@ function makeShip(id) {
   return ship;
 }
 
-// Initialize local 2-player mode (default)
+// Initialize local mode (single player by default, P2 joins on Slash)
 function initLocalMode() {
   ships.length = 0;
-  ships.push(makeShip(0), makeShip(1));
-  for (const s of ships) {
-    s.isLocal = true;
-    s.name = `Player ${s.id + 1}`;
-    leaderboard.addPlayer(s.id, s.name, s.config.color);
+  const p1 = makeShip(0);
+  p1.isLocal = true;
+  p1.controlBinding = 0;
+  p1.name = 'Player 1';
+  ships.push(p1);
+  leaderboard.addPlayer(p1.id, p1.name, p1.config.color);
+}
+
+let p2Joined = false;
+function joinP2() {
+  if (p2Joined || networkMode) return;
+  let id = -1;
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    if (!ships.find(s => s.id === i)) { id = i; break; }
   }
+  if (id < 0) return;
+  p2Joined = true;
+  const p2 = makeShip(id);
+  p2.isLocal = true;
+  p2.controlBinding = 1;
+  p2.name = 'Player 2';
+  ships.push(p2);
+  leaderboard.addPlayer(p2.id, p2.name, p2.config.color);
+  luaCtx.reset();
+  chat.addMessage('', '#586e75', 'Player 2 joined!');
 }
 
 function startGame() {
@@ -200,9 +220,16 @@ function showHelpInChat() {
       chat.addMessage('', hint, 'Host: ` for editor | /command to run Lua');
     }
   } else {
-    chat.addMessage('', hint, 'P1: WASD + Space | P2: Arrows + / | ` for editor');
+    chat.addMessage('', hint, 'P1: WASD + Space | Press / for P2 to join | ` for editor');
   }
 }
+
+// P2 joins local game on first Slash press
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Slash' && !p2Joined && !networkMode && e.target === document.body) {
+    joinP2();
+  }
+});
 
 // Chat input handling
 const chatBar = document.getElementById('chat-bar');
@@ -240,13 +267,14 @@ chatInput.addEventListener('keydown', (e) => {
           const chatOutputs = [];
           appendOutput = (t, isError) => {
             origAppendOutput(t, isError);
-            if (!t.startsWith('> ')) chatOutputs.push(t);
+            if (!t.startsWith('> ')) chatOutputs.push({ text: t, isError });
           };
           luaCtx.runLuaREPL(text.slice(1));
           appendOutput = origAppendOutput;
-          for (const line of chatOutputs) {
-            chat.addMessage('', '#2aa198', line);
-            net.sendChat('', '#2aa198', line);
+          for (const o of chatOutputs) {
+            const color = o.isError ? '#dc322f' : '#2aa198';
+            chat.addMessage('', color, o.text);
+            if (!o.isError) net.sendChat('', color, o.text);
           }
         } else {
           chat.addMessage('', '#dc322f', 'Only the host can run /commands.');
@@ -305,6 +333,32 @@ luaCtx.setOnNameChange((playerId, newName) => {
     saveName(newName);
   }
   if (networkMode) net.sendNameChange(playerId, newName);
+});
+
+luaCtx.setOnAIAdd(() => {
+  // Find lowest free ID
+  let id = -1;
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    if (!ships.find(s => s.id === i)) { id = i; break; }
+  }
+  if (id < 0) return -1;
+  const ship = makeShip(id);
+  ship.isLocal = true;
+  ship.isAI = true;
+  ship.name = `Bot ${id + 1}`;
+  ships.push(ship);
+  leaderboard.addPlayer(id, ship.name, ship.config.color);
+  if (networkMode) net.sendAIJoin(id, ship.name);
+  return id;
+});
+
+luaCtx.setOnAIRemove((id) => {
+  const idx = ships.findIndex(s => s.id === id);
+  if (idx >= 0) {
+    ships.splice(idx, 1);
+    leaderboard.removePlayer(id);
+    if (networkMode) net.sendAILeave(id);
+  }
 });
 
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
@@ -427,9 +481,14 @@ function gameLoop(time) {
     const ship = ships[i];
 
     if (ship.isLocal) {
-      const actions = networkMode
-        ? getNetworkActions(input.keys)
-        : getActions(input.keys, PLAYER_BINDINGS[i]);
+      let actions;
+      if (ship.isAI) {
+        actions = getAIActions(ship, ships, projectiles, WORLD_WIDTH, WORLD_HEIGHT);
+      } else if (networkMode) {
+        actions = getNetworkActions(input.keys);
+      } else {
+        actions = getActions(input.keys, PLAYER_BINDINGS[ship.controlBinding || 0]);
+      }
 
       const respawned = tickRespawn(ship, dt);
       if (networkMode && respawned) net.sendRespawn(ship);

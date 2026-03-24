@@ -21,19 +21,24 @@ Open http://localhost:8080 in your browser.
 
 ## Controls
 
-### Player 1
+### Local Mode
+
+Starts with 1 ship. Press `/` for Player 2 to join.
 
 | Key | Action |
 |---|---|
-| WASD | Rotate and thrust |
+| WASD + Space | Player 1 controls |
+| Arrow keys + `/` | Player 2 controls (joins on first press) |
+
+### Network Mode
+
+Both WASD and arrow keys work. Space to shoot.
+
+| Key | Action |
+|---|---|
+| WASD / Arrow keys | Rotate and thrust |
 | Space | Shoot |
-
-### Player 2
-
-| Key | Action |
-|---|---|
-| Arrow keys | Rotate and thrust |
-| `/` (slash) | Shoot |
+| Enter | Open chat |
 
 ### General
 
@@ -56,7 +61,7 @@ Type `help()` in the REPL for the full reference. Summary:
 | Global | Description |
 |---|---|
 | `ship` / `ship1` | Player 1's ship (alias for ship1) |
-| `ship2` – `ship4` | Other players' ships (nil if not present) |
+| `ship2` – `ship8` | Other players' ships (nil if not present) |
 | `ship.color` | Ship color (CSS color string) |
 | `ship.thrust` | Acceleration per frame (default 0.15) |
 | `ship.turnSpeed` | Rotation per frame (default 0.05) |
@@ -72,6 +77,8 @@ Type `help()` in the REPL for the full reference. Summary:
 | `screen.width`, `screen.height` | World dimensions (1920×1080) |
 | `projectiles` | Array of active projectiles |
 | `shoot()` | Fire a projectile from your ship |
+| `addAI()` | Add an AI opponent |
+| `removeAI(n)` | Remove AI player n |
 | `setName(n, name)` | Rename player n (e.g. `setName(1, "Alice")`) |
 | `print(...)` | Output to the editor console |
 | `help()` | Print full API reference |
@@ -107,6 +114,7 @@ src/
   projectiles.js       Projectile spawning, movement, and rendering
   explosions.js        Particle explosion effects
   collision.js         Collision detection
+  ai.js                AI decision logic for computer players
   world.js             World dimensions, player colors, spawn positions
   lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
@@ -121,6 +129,7 @@ tests/
   projectiles.test.js      Projectile system unit tests
   explosions.test.js       Explosion particle unit tests
   collision.test.js        Collision detection unit tests
+  ai.test.js               AI behavior unit tests
   world.test.js            World constants unit tests
   leaderboard.test.js      Leaderboard scoring unit tests
   chat.test.js             Chat message unit tests
