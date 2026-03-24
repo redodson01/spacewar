@@ -34,21 +34,45 @@ describe('createShip', () => {
 });
 
 describe('resetShip', () => {
-  it('restores defaults and recenters', () => {
+  it('restores physics state and recenters', () => {
     const ship = createShip(0, 400, 300, '#f0f');
-    ship.thrust = 999;
     ship.vx = 10;
     ship.vy = -5;
     ship.x = 0;
     ship.y = 0;
+    ship.destroyed = true;
 
     resetShip(ship, 500, 400);
 
     expect(ship.x).toBe(500);
     expect(ship.y).toBe(400);
-    expect(ship.thrust).toBe(SHIP_DEFAULTS.thrust);
     expect(ship.vx).toBe(0);
     expect(ship.vy).toBe(0);
+    expect(ship.destroyed).toBe(false);
+  });
+
+  it('preserves scenario properties across reset', () => {
+    const ship = createShip(0, 400, 300, '#f0f');
+    ship.thrust = 0.5;
+    ship.turnSpeed = 0.1;
+    ship.friction = 0.99;
+    ship.fireCooldown = 0.1;
+    ship.radius = 30;
+    ship.showName = true;
+    ship.controlScheme = 1;
+    ship.explosionParticles = 50;
+
+    resetShip(ship, 400, 300);
+
+    expect(ship.color).toBe('#f0f');
+    expect(ship.thrust).toBe(0.5);
+    expect(ship.turnSpeed).toBe(0.1);
+    expect(ship.friction).toBe(0.99);
+    expect(ship.fireCooldown).toBe(0.1);
+    expect(ship.radius).toBe(30);
+    expect(ship.showName).toBe(true);
+    expect(ship.controlScheme).toBe(1);
+    expect(ship.explosionParticles).toBe(50);
   });
 
   it('preserves ship color', () => {

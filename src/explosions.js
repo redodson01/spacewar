@@ -2,8 +2,12 @@ export function createExplosions() {
   return [];
 }
 
-export function spawnExplosion(explosions, x, y, color) {
-  const count = 20 + Math.floor(Math.random() * 11); // 20-30
+export const EXPLOSION_DEFAULTS = {
+  particles: 25,
+};
+
+export function spawnExplosion(explosions, x, y, color, particles = EXPLOSION_DEFAULTS.particles) {
+  const count = Math.max(1, Math.floor(particles * 0.8)) + Math.floor(Math.random() * Math.max(1, Math.floor(particles * 0.4) + 1));
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 1 + Math.random() * 3;

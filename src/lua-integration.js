@@ -63,7 +63,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         id: s.id, color: s.color, radius: s.radius,
         thrust: s.thrust, turnSpeed: s.turnSpeed,
         friction: s.friction, fireCooldown: s.fireCooldown,
-        showName: s.showName,
+        showName: s.showName, controlScheme: s.controlScheme,
+        explosionParticles: s.explosionParticles,
       })));
     }
   }

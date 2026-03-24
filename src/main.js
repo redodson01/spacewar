@@ -145,7 +145,7 @@ net.onHit((targetId, killerId, _x, _y, _color) => {
   // Another client says we got hit by a projectile
   const ship = ships.find(s => s.id === targetId && s.isLocal);
   if (ship && !ship.destroyed) {
-    spawnExplosion(explosions, ship.x, ship.y, ship.color);
+    spawnExplosion(explosions, ship.x, ship.y, ship.color, ship.explosionParticles);
     destroyShip(ship);
     net.sendDeath(ship, killerId);
   }
@@ -158,7 +158,7 @@ net.onScores((scoreList) => {
 net.onDeath((id, x, y, color) => {
   const ship = ships.find(s => s.id === id);
   if (ship && !ship.destroyed) {
-    spawnExplosion(explosions, x, y, color);
+    spawnExplosion(explosions, x, y, color, ship.explosionParticles);
     destroyShip(ship);
     interpolator.remove(id);
   }
@@ -183,6 +183,8 @@ net.onLuaUpdate((updates) => {
     ship.friction = u.friction;
     ship.fireCooldown = u.fireCooldown;
     ship.showName = u.showName;
+    ship.controlScheme = u.controlScheme;
+    ship.explosionParticles = u.explosionParticles;
     leaderboard.updateColor(u.id, u.color);
   }
 });
@@ -262,7 +264,7 @@ function gameLoop(time) {
 
     if (ship.isLocal) {
       // Local ship: read from keyboard
-      const bindings = networkMode ? PLAYER_BINDINGS[0] : PLAYER_BINDINGS[i];
+      const bindings = PLAYER_BINDINGS[ship.controlScheme || (networkMode ? 0 : i)];
       const actions = getActions(input.keys, bindings);
 
       const respawned = tickRespawn(ship, dt);
@@ -270,7 +272,8 @@ function gameLoop(time) {
 
       updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
       tickFireCooldown(ship, dt);
-      if (actions.fire && !ship.destroyed) {
+      const fire = actions.fire || (networkMode && input.keys['Space']);
+      if (fire && !ship.destroyed) {
         if (fireProjectile(projectiles, ship)) {
           if (networkMode) net.sendFire(ship);
         }
@@ -291,7 +294,7 @@ function gameLoop(time) {
       const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
         const killerId = projectiles[hitIdx].ownerId;
-        spawnExplosion(explosions, ship.x, ship.y, ship.color);
+        spawnExplosion(explosions, ship.x, ship.y, ship.color, ship.explosionParticles);
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
         if (networkMode) {
@@ -308,8 +311,8 @@ function gameLoop(time) {
   for (let i = 0; i < ships.length; i++) {
     for (let j = i + 1; j < ships.length; j++) {
       if (ships[i].invulnerableTimer <= 0 && ships[j].invulnerableTimer <= 0 && checkShipShipCollision(ships[i], ships[j])) {
-        spawnExplosion(explosions, ships[i].x, ships[i].y, ships[i].color);
-        spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color);
+        spawnExplosion(explosions, ships[i].x, ships[i].y, ships[i].color, ships[i].explosionParticles);
+        spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color, ships[j].explosionParticles);
         destroyShip(ships[i]);
         destroyShip(ships[j]);
         if (networkMode) {

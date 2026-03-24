@@ -14,15 +14,22 @@ export const SHIP_DEFAULTS = {
   thrusting: false,
   showName: false,
   invulnerableTimer: 0,
+  controlScheme: 0,
+  explosionParticles: 25,
 };
 
 export function createShip(id, x, y, color = SHIP_DEFAULTS.color) {
   return { ...SHIP_DEFAULTS, id, x, y, spawnX: x, spawnY: y, color };
 }
 
+// Properties set by Lua scenarios that persist across death/respawn
+const SCENARIO_PROPS = ['color', 'radius', 'thrust', 'turnSpeed', 'friction', 'fireCooldown', 'showName', 'controlScheme', 'explosionParticles'];
+
 export function resetShip(ship, centerX, centerY) {
-  const { color, spawnAngle } = ship;
-  Object.assign(ship, SHIP_DEFAULTS, { x: centerX, y: centerY, color, invulnerableTimer: INVULNERABLE_DURATION });
+  const saved = {};
+  for (const key of SCENARIO_PROPS) saved[key] = ship[key];
+  const { spawnAngle } = ship;
+  Object.assign(ship, SHIP_DEFAULTS, { x: centerX, y: centerY, invulnerableTimer: INVULNERABLE_DURATION }, saved);
   if (spawnAngle !== undefined) ship.angle = spawnAngle;
 }
 
