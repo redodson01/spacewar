@@ -10,31 +10,33 @@ export function createProjectiles() {
 }
 
 export function fireProjectile(projectiles, ship) {
-  if (ship.fireCooldownTimer > 0) return false;
+  const s = ship.state;
+  const c = ship.config;
+  if (s.fireCooldownTimer > 0) return false;
 
   const nose = {
-    x: ship.x + Math.cos(ship.angle) * ship.radius,
-    y: ship.y + Math.sin(ship.angle) * ship.radius,
+    x: s.x + Math.cos(s.angle) * c.radius,
+    y: s.y + Math.sin(s.angle) * c.radius,
   };
 
   projectiles.push({
     x: nose.x,
     y: nose.y,
-    vx: ship.vx + Math.cos(ship.angle) * PROJECTILE_DEFAULTS.speed,
-    vy: ship.vy + Math.sin(ship.angle) * PROJECTILE_DEFAULTS.speed,
+    vx: s.vx + Math.cos(s.angle) * PROJECTILE_DEFAULTS.speed,
+    vy: s.vy + Math.sin(s.angle) * PROJECTILE_DEFAULTS.speed,
     age: 0,
     lifetime: PROJECTILE_DEFAULTS.lifetime,
     radius: PROJECTILE_DEFAULTS.radius,
-    color: ship.color,
+    color: c.color,
     ownerId: ship.id,
   });
 
-  ship.fireCooldownTimer = ship.fireCooldown;
+  s.fireCooldownTimer = c.fireCooldown;
   return true;
 }
 
 export function tickFireCooldown(ship, dt) {
-  ship.fireCooldownTimer = Math.max(0, ship.fireCooldownTimer - dt);
+  ship.state.fireCooldownTimer = Math.max(0, ship.state.fireCooldownTimer - dt);
 }
 
 export function updateProjectiles(projectiles, dt, canvasWidth, canvasHeight) {

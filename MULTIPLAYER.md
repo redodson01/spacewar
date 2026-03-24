@@ -10,7 +10,7 @@
 
 ## Server (`server/index.js`)
 
-A Node.js WebSocket + HTTP server (~575 lines):
+A Node.js WebSocket + HTTP server (~645 lines):
 - Assigns player IDs on connect, broadcasts join/leave events
 - Relays game messages between clients (client-authoritative state)
 - Runs a server-side Lua engine for game-global scripting
@@ -52,7 +52,7 @@ A WebSocket client module:
 - WebSocket networking with automatic server discovery
 - Up to 8 players (human + AI) per session
 - Client-hosted and server-hosted AI opponents
-- In-game chat with `/commands` (name, ai, removeai, speed, latency, help)
+- In-game chat with `/commands` (name, ai, removeai, speed, help)
 - Player usernames with `/name` command
 - Score tracking and leaderboard display
 - Server-side Lua engine for game-global scripting
