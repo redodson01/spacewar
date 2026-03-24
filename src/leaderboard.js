@@ -25,6 +25,13 @@ export function createLeaderboard() {
     if (e2) e2.score -= 1;
   }
 
+  function setScores(scoreList) {
+    for (const { id, score } of scoreList) {
+      const entry = entries.get(id);
+      if (entry) entry.score = score;
+    }
+  }
+
   function getScores() {
     return [...entries.values()].sort((a, b) => b.score - a.score || a.id - b.id);
   }
@@ -62,5 +69,5 @@ export function createLeaderboard() {
     ctx.shadowBlur = 0;
   }
 
-  return { addPlayer, removePlayer, clear, recordKill, recordCollision, getScores, draw };
+  return { addPlayer, removePlayer, clear, recordKill, recordCollision, setScores, getScores, draw };
 }

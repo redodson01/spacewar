@@ -31,6 +31,8 @@ function nextId() {
   return -1;
 }
 
+const scores = new Map(); // id -> score
+
 function broadcast(sender, message) {
   const data = typeof message === 'string' ? message : JSON.stringify(message);
   for (const [ws] of players) {
@@ -38,6 +40,17 @@ function broadcast(sender, message) {
       ws.send(data);
     }
   }
+}
+
+function broadcastAll(message) {
+  const data = JSON.stringify(message);
+  for (const [ws] of players) {
+    if (ws.readyState === 1) ws.send(data);
+  }
+}
+
+function broadcastScores() {
+  broadcastAll({ type: 'scores', scores: [...scores.entries()].map(([id, score]) => ({ id, score })) });
 }
 
 // HTTP server — serve static files
@@ -79,6 +92,7 @@ wss.on('connection', (ws, req) => {
   const name = url.searchParams.get('name') || `Player ${id + 1}`;
   const color = COLORS[id];
   players.set(ws, { id, color, name });
+  scores.set(id, 0);
 
   // Send welcome to the new player
   const existingPlayers = [...players.values()].filter(p => p.id !== id);
@@ -88,18 +102,35 @@ wss.on('connection', (ws, req) => {
     color,
     name,
     players: existingPlayers,
+    scores: [...scores.entries()].map(([sid, score]) => ({ id: sid, score })),
   }));
 
   // Announce to others
   broadcast(ws, { type: 'join', id, color, name });
 
-  ws.on('message', (data) => {
-    // Relay verbatim to all other clients
-    broadcast(ws, data.toString());
+  ws.on('message', (raw) => {
+    const str = raw.toString();
+    broadcast(ws, str);
+
+    // Track scores from death events
+    try {
+      const msg = JSON.parse(str);
+      if (msg.type === 'death') {
+        if (msg.killerId != null && scores.has(msg.killerId)) {
+          scores.set(msg.killerId, scores.get(msg.killerId) + 1);
+        }
+        if (msg.killerId == null && msg.id != null && scores.has(msg.id)) {
+          // Ship-ship collision: dying ship gets -1
+          scores.set(msg.id, scores.get(msg.id) - 1);
+        }
+        broadcastScores();
+      }
+    } catch { /* ignore parse errors */ }
   });
 
   ws.on('close', () => {
     players.delete(ws);
+    scores.delete(id);
     broadcast(null, { type: 'leave', id });
   });
 });

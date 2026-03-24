@@ -13,6 +13,7 @@ export function createNetClient() {
     hit: null,
     death: null,
     respawn: null,
+    scores: null,
   };
 
   function connect(name) {
@@ -68,6 +69,9 @@ export function createNetClient() {
           case 'respawn':
             if (callbacks.respawn) callbacks.respawn(msg.id, msg.x, msg.y);
             break;
+          case 'scores':
+            if (callbacks.scores) callbacks.scores(msg.scores);
+            break;
         }
       };
 
@@ -112,6 +116,7 @@ export function createNetClient() {
       vy: ship.vy,
       thrusting: ship.thrusting,
       destroyed: ship.destroyed,
+      color: ship.color,
     });
   }
 
@@ -131,8 +136,8 @@ export function createNetClient() {
     send({ type: 'hit', targetId: targetShip.id, killerId, x: targetShip.x, y: targetShip.y, color: targetShip.color });
   }
 
-  function sendDeath(ship) {
-    send({ type: 'death', x: ship.x, y: ship.y, color: ship.color });
+  function sendDeath(ship, killerId = null) {
+    send({ type: 'death', x: ship.x, y: ship.y, color: ship.color, killerId });
   }
 
   function sendRespawn(ship) {
@@ -152,6 +157,7 @@ export function createNetClient() {
     onJoin(cb) { callbacks.join = cb; },
     onHit(cb) { callbacks.hit = cb; },
     onLeave(cb) { callbacks.leave = cb; },
+    onScores(cb) { callbacks.scores = cb; },
     onState(cb) { callbacks.state = cb; },
     onFire(cb) { callbacks.fire = cb; },
     onDeath(cb) { callbacks.death = cb; },
@@ -190,6 +196,7 @@ export function createInterpolator() {
     ship.vy = lerp(prev.vy, next.vy, t);
     ship.thrusting = next.thrusting;
     ship.destroyed = next.destroyed;
+    if (next.color) ship.color = next.color;
   }
 
   function remove(id) {
