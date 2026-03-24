@@ -15,6 +15,7 @@ export function createNetClient() {
     scores: null,
     luaUpdate: null,
     chat: null,
+    nameChange: null,
   };
 
   function connect(name) {
@@ -75,6 +76,9 @@ export function createNetClient() {
             break;
           case 'chat':
             if (callbacks.chat) callbacks.chat(msg.name, msg.color, msg.text);
+            break;
+          case 'nameChange':
+            if (callbacks.nameChange) callbacks.nameChange(msg.playerId, msg.newName);
             break;
         }
       };
@@ -145,6 +149,10 @@ export function createNetClient() {
     send({ type: 'chat', name, color, text });
   }
 
+  function sendNameChange(playerId, newName) {
+    send({ type: 'nameChange', playerId, newName });
+  }
+
   return {
     connect,
     disconnect,
@@ -154,6 +162,7 @@ export function createNetClient() {
     sendRespawn,
     sendLuaUpdate,
     sendChat,
+    sendNameChange,
     get isConnected() { return connected; },
     get localId() { return localId; },
     onJoin(cb) { callbacks.join = cb; },
@@ -165,6 +174,7 @@ export function createNetClient() {
     onDeath(cb) { callbacks.death = cb; },
     onRespawn(cb) { callbacks.respawn = cb; },
     onChat(cb) { callbacks.chat = cb; },
+    onNameChange(cb) { callbacks.nameChange = cb; },
   };
 }
 

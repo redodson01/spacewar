@@ -32,6 +32,18 @@ export function saveScript(content) {
   } catch { /* ignore quota errors */ }
 }
 
+export function loadName() {
+  try {
+    return localStorage.getItem(PREFIX + 'name');
+  } catch { return null; }
+}
+
+export function saveName(name) {
+  try {
+    localStorage.setItem(PREFIX + 'name', name);
+  } catch { /* ignore quota errors */ }
+}
+
 export function clearAll() {
   try {
     localStorage.removeItem(PREFIX + 'repl-history');

@@ -10,6 +10,7 @@ import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, setWorldSize
 import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
+import { loadName, saveName } from './storage.js';
 
 // Canvas
 const canvas = document.getElementById('game');
@@ -262,6 +263,21 @@ chatInput.addEventListener('keydown', (e) => {
 });
 chatInput.addEventListener('keyup', (e) => e.stopPropagation());
 
+net.onNameChange((playerId, newName) => {
+  const ship = ships.find(s => s.id === playerId);
+  if (ship) {
+    ship.name = newName;
+    leaderboard.updateName(ship.id, newName);
+  }
+});
+
+luaCtx.setOnNameChange((playerId, newName) => {
+  leaderboard.updateName(playerId, newName);
+  const ship = ships.find(s => s.id === playerId);
+  if (ship && ship.isLocal) saveName(newName);
+  if (networkMode) net.sendNameChange(playerId, newName);
+});
+
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
 luaCtx.setOnShipUpdate((updates) => {
   for (const u of updates) leaderboard.updateColor(u.id, u.color);
@@ -269,7 +285,9 @@ luaCtx.setOnShipUpdate((updates) => {
 });
 
 // Try to connect — if it works, switch to network mode
-const playerName = prompt('Enter your name:');
+const savedName = loadName();
+const playerName = prompt('Enter your name:', savedName || '');
+if (playerName) saveName(playerName);
 net.connect(playerName || 'Player').then((welcome) => {
   if (!welcome) return;
 

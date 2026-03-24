@@ -25,6 +25,7 @@ function createShipProxy(ship) {
 
 export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
   let onShipUpdate = null;
+  let onNameChange = null;
 
   if (!fengari) {
     return {
@@ -35,6 +36,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       callLuaUpdate(_dt) {},
       reset() {},
       setOnShipUpdate(cb) { onShipUpdate = cb; },
+      setOnNameChange(cb) { onNameChange = cb; },
       broadcastShipUpdates() {},
     };
   }
@@ -200,6 +202,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     },
 
     setOnShipUpdate(cb) { onShipUpdate = cb; },
+    setOnNameChange(cb) { onNameChange = cb; },
     broadcastShipUpdates,
   };
 
@@ -231,6 +234,26 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     return 0;
   });
   lua.lua_setglobal(L, LUA_SHOOT);
+
+  const LUA_SET_NAME = toLua("setName");
+  lua.lua_pushcfunction(L, function (L) {
+    if (lua.lua_gettop(L) < 2) {
+      appendOutput('Usage: setName(shipNum, "name") — e.g. setName(1, "Alice")', true);
+      return 0;
+    }
+    const shipNum = lua.lua_tointeger(L, 1);
+    const newName = toJS(lua.lua_tostring(L, 2));
+    const ship = ships.find(s => s.id === shipNum - 1);
+    if (ship) {
+      ship.name = newName;
+      if (onNameChange) onNameChange(ship.id, newName);
+      appendOutput(`Player ${shipNum} is now "${newName}".`);
+    } else {
+      appendOutput(`Player ${shipNum} not found.`, true);
+    }
+    return 0;
+  });
+  lua.lua_setglobal(L, LUA_SET_NAME);
 
   const LUA_HELP = toLua("help");
   lua.lua_pushcfunction(L, function () {
@@ -266,6 +289,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       '',
       'FUNCTIONS',
       '  shoot()           Fire a projectile from your ship',
+      '  setName(n, name)  Rename player n — e.g. setName(1, "Alice")',
       '  print(...)        Output to this console',
       '  help()            Show this reference',
       '',

@@ -14,6 +14,11 @@ export function createLeaderboard() {
     if (entry) entry.color = color;
   }
 
+  function updateName(id, name) {
+    const entry = entries.get(id);
+    if (entry) entry.name = name;
+  }
+
   function clear() {
     entries.clear();
   }
@@ -74,5 +79,5 @@ export function createLeaderboard() {
     ctx.shadowBlur = 0;
   }
 
-  return { addPlayer, removePlayer, updateColor, clear, recordKill, recordCollision, setScores, getScores, draw };
+  return { addPlayer, removePlayer, updateColor, updateName, clear, recordKill, recordCollision, setScores, getScores, draw };
 }
