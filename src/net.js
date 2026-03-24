@@ -10,6 +10,7 @@ export function createNetClient() {
     leave: null,
     state: null,
     fire: null,
+    hit: null,
     death: null,
     respawn: null,
   };
@@ -57,6 +58,9 @@ export function createNetClient() {
             break;
           case 'fire':
             if (callbacks.fire) callbacks.fire(msg.id, msg);
+            break;
+          case 'hit':
+            if (callbacks.hit) callbacks.hit(msg.targetId, msg.x, msg.y, msg.color);
             break;
           case 'death':
             if (callbacks.death) callbacks.death(msg.id, msg.x, msg.y, msg.color);
@@ -123,6 +127,10 @@ export function createNetClient() {
     });
   }
 
+  function sendHit(targetShip) {
+    send({ type: 'hit', targetId: targetShip.id, x: targetShip.x, y: targetShip.y, color: targetShip.color });
+  }
+
   function sendDeath(ship) {
     send({ type: 'death', x: ship.x, y: ship.y, color: ship.color });
   }
@@ -136,11 +144,13 @@ export function createNetClient() {
     disconnect,
     sendState,
     sendFire,
+    sendHit,
     sendDeath,
     sendRespawn,
     get isConnected() { return connected; },
     get localId() { return localId; },
     onJoin(cb) { callbacks.join = cb; },
+    onHit(cb) { callbacks.hit = cb; },
     onLeave(cb) { callbacks.leave = cb; },
     onState(cb) { callbacks.state = cb; },
     onFire(cb) { callbacks.fire = cb; },

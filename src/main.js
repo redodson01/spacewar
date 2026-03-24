@@ -134,9 +134,19 @@ net.onFire((id, data) => {
   });
 });
 
+net.onHit((targetId, _x, _y, _color) => {
+  // Another client says we got hit
+  const ship = ships.find(s => s.id === targetId && s.isLocal);
+  if (ship && !ship.destroyed) {
+    spawnExplosion(explosions, ship.x, ship.y, ship.color);
+    destroyShip(ship);
+    net.sendDeath(ship);
+  }
+});
+
 net.onDeath((id, x, y, color) => {
   const ship = ships.find(s => s.id === id);
-  if (ship) {
+  if (ship && !ship.destroyed) {
     spawnExplosion(explosions, x, y, color);
     destroyShip(ship);
   }
@@ -230,51 +240,35 @@ function gameLoop(time) {
 
   updateProjectiles(projectiles, dt, WORLD_WIDTH, WORLD_HEIGHT);
 
-  // Collision: projectiles vs ships
-  if (networkMode) {
-    // Only check local ship — each client is authoritative over its own death
-    const localShip = ships.find(s => s.isLocal);
-    if (localShip && !localShip.destroyed) {
-      const hitIdx = checkShipProjectileCollision(localShip, projectiles);
+  // Collision: projectiles vs all ships
+  for (const ship of ships) {
+    if (!ship.destroyed) {
+      const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
-        spawnExplosion(explosions, localShip.x, localShip.y, localShip.color);
+        spawnExplosion(explosions, ship.x, ship.y, ship.color);
         projectiles.splice(hitIdx, 1);
-        destroyShip(localShip);
-        net.sendDeath(localShip);
-      }
-    }
-    // Ship-ship collision: only check local vs others
-    if (localShip && !localShip.destroyed) {
-      for (const other of ships) {
-        if (other === localShip || other.destroyed) continue;
-        if (checkShipShipCollision(localShip, other)) {
-          spawnExplosion(explosions, localShip.x, localShip.y, localShip.color);
-          destroyShip(localShip);
-          net.sendDeath(localShip);
-          break;
+        destroyShip(ship);
+        if (networkMode) {
+          if (ship.isLocal) net.sendDeath(ship);
+          else net.sendHit(ship);
         }
       }
     }
-  } else {
-    // Local mode: check all ships vs all projectiles
-    for (const ship of ships) {
-      if (!ship.destroyed) {
-        const hitIdx = checkShipProjectileCollision(ship, projectiles);
-        if (hitIdx >= 0) {
-          spawnExplosion(explosions, ship.x, ship.y, ship.color);
-          projectiles.splice(hitIdx, 1);
-          destroyShip(ship);
-        }
-      }
-    }
-    // Ship-ship collision: all pairs
-    for (let i = 0; i < ships.length; i++) {
-      for (let j = i + 1; j < ships.length; j++) {
-        if (checkShipShipCollision(ships[i], ships[j])) {
-          spawnExplosion(explosions, ships[i].x, ships[i].y, ships[i].color);
-          spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color);
-          destroyShip(ships[i]);
-          destroyShip(ships[j]);
+  }
+
+  // Ship-ship collision: all pairs
+  for (let i = 0; i < ships.length; i++) {
+    for (let j = i + 1; j < ships.length; j++) {
+      if (checkShipShipCollision(ships[i], ships[j])) {
+        spawnExplosion(explosions, ships[i].x, ships[i].y, ships[i].color);
+        spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color);
+        destroyShip(ships[i]);
+        destroyShip(ships[j]);
+        if (networkMode) {
+          if (ships[i].isLocal) net.sendDeath(ships[i]);
+          else net.sendHit(ships[i]);
+          if (ships[j].isLocal) net.sendDeath(ships[j]);
+          else net.sendHit(ships[j]);
         }
       }
     }
