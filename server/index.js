@@ -25,8 +25,8 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
 };
 
-const COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900'];
-const MAX_PLAYERS = 4;
+const COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900', '#2aa198', '#d33682', '#cb4b16', '#6c71c4'];
+const MAX_PLAYERS = 8;
 
 // Player management
 const players = new Map(); // ws -> { id, color, name }

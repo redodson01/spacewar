@@ -52,7 +52,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   lualib.luaL_openlibs(L);
   const LUA_ON_UPDATE = toLua("onUpdate");
   const LUA_SHIP = toLua("ship");
-  const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4")];
+  const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4"), toLua("ship5"), toLua("ship6"), toLua("ship7"), toLua("ship8")];
   const LUA_PRINT = toLua("print");
   const LUA_SHOOT = toLua("shoot");
   const LUA_PROJECTILES = toLua("projectiles");
@@ -72,7 +72,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     }
     // Set present ships by their ID
     for (const s of ships) {
-      if (s.id >= 0 && s.id < 4) {
+      if (s.id >= 0 && s.id < 8) {
         interop.push(L, createShipProxy(s));
         lua.lua_setglobal(L, LUA_SHIP_GLOBALS[s.id]);
       }
