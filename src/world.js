@@ -14,7 +14,7 @@ export const PLAYER_COLORS = [
   '#6c71c4', // violet
 ];
 
-function computeSpawnPositions(w, h) {
+export function computeSpawnPositions(w, h) {
   const positions = [];
   for (let i = 0; i < MAX_PLAYERS; i++) {
     const angle = (i / MAX_PLAYERS) * Math.PI * 2 - Math.PI / 2; // start from top

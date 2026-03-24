@@ -161,7 +161,7 @@ net.onState((id, state) => {
 
 net.onFire((id, data) => {
   const ship = ships.find(s => s.id === id);
-  if (!ship) return;
+  if (!ship || ship.state.destroyed) return;
   projectiles.push({
     x: data.x + Math.cos(data.angle) * ship.config.radius,
     y: data.y + Math.sin(data.angle) * ship.config.radius,
@@ -173,6 +173,15 @@ net.onFire((id, data) => {
     color: ship.config.color,
     ownerId: id,
   });
+});
+
+net.onStateOverride((targetId, msg) => {
+  const ship = ships.find(s => s.id === targetId);
+  if (!ship) return;
+  const stateProps = ['x', 'y', 'angle', 'vx', 'vy', 'thrusting', 'destroyed', 'invulnerableTimer', 'fireCooldownTimer'];
+  for (const prop of stateProps) {
+    if (msg[prop] !== undefined) ship.state[prop] = msg[prop];
+  }
 });
 
 net.onScores((scoreList) => {
@@ -509,8 +518,9 @@ function gameLoop(time) {
 
   updateProjectiles(projectiles, dt, WORLD_WIDTH, WORLD_HEIGHT);
 
-  // Collision: projectiles vs all ships
+  // Collision: projectiles vs local ships only (each owner detects their own deaths)
   for (const ship of ships) {
+    if (networkMode && !ship.isLocal) continue;
     if (!ship.state.destroyed && ship.state.invulnerableTimer <= 0) {
       const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
@@ -519,7 +529,7 @@ function gameLoop(time) {
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
         if (networkMode) {
-          if (ship.isLocal) net.sendDeath(ship, killerId, 'projectile');
+          net.sendDeath(ship, killerId, 'projectile');
         } else {
           leaderboard.recordKill(killerId);
         }
@@ -527,10 +537,11 @@ function gameLoop(time) {
     }
   }
 
-  // Ship-ship collision: all pairs
+  // Ship-ship collision: in network mode, only if at least one local ship involved
   for (let i = 0; i < ships.length; i++) {
     for (let j = i + 1; j < ships.length; j++) {
       const si = ships[i], sj = ships[j];
+      if (networkMode && !si.isLocal && !sj.isLocal) continue;
       if (si.state.invulnerableTimer <= 0 && sj.state.invulnerableTimer <= 0 && checkShipShipCollision(si, sj)) {
         spawnExplosion(explosions, si.state.x, si.state.y, si.config.color, si.config.explosionParticles);
         spawnExplosion(explosions, sj.state.x, sj.state.y, sj.config.color, sj.config.explosionParticles);
