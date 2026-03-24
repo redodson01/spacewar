@@ -14,6 +14,7 @@ export function createNetClient() {
     death: null,
     respawn: null,
     scores: null,
+    luaUpdate: null,
   };
 
   function connect(name) {
@@ -71,6 +72,9 @@ export function createNetClient() {
             break;
           case 'scores':
             if (callbacks.scores) callbacks.scores(msg.scores);
+            break;
+          case 'luaUpdate':
+            if (callbacks.luaUpdate) callbacks.luaUpdate(msg.updates);
             break;
         }
       };
@@ -144,6 +148,10 @@ export function createNetClient() {
     send({ type: 'respawn', x: ship.x, y: ship.y });
   }
 
+  function sendLuaUpdate(updates) {
+    send({ type: 'luaUpdate', updates });
+  }
+
   return {
     connect,
     disconnect,
@@ -152,12 +160,14 @@ export function createNetClient() {
     sendHit,
     sendDeath,
     sendRespawn,
+    sendLuaUpdate,
     get isConnected() { return connected; },
     get localId() { return localId; },
     onJoin(cb) { callbacks.join = cb; },
     onHit(cb) { callbacks.hit = cb; },
     onLeave(cb) { callbacks.leave = cb; },
     onScores(cb) { callbacks.scores = cb; },
+    onLuaUpdate(cb) { callbacks.luaUpdate = cb; },
     onState(cb) { callbacks.state = cb; },
     onFire(cb) { callbacks.fire = cb; },
     onDeath(cb) { callbacks.death = cb; },

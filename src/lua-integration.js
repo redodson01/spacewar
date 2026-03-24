@@ -2,6 +2,8 @@ import { fireProjectile } from './projectiles.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
 
 export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
+  let onShipUpdate = null;
+
   if (!fengari) {
     return {
       isReady: false,
@@ -10,6 +12,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       runLuaREPL(_line) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       callLuaUpdate(_dt) {},
       reset() {},
+      setOnShipUpdate(cb) { onShipUpdate = cb; },
     };
   }
 
@@ -54,6 +57,12 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     }
   }
 
+  function broadcastShipUpdates() {
+    if (onShipUpdate) {
+      onShipUpdate(ships.map(s => ({ id: s.id, color: s.color })));
+    }
+  }
+
   const ctx = {
     isReady: true,
     hasOnUpdate: false,
@@ -84,6 +93,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_pop(L, 1);
 
       appendOutput('Script executed.');
+      broadcastShipUpdates();
     },
 
     runLuaREPL(line) {
@@ -129,6 +139,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_getglobal(L, LUA_ON_UPDATE);
       ctx.hasOnUpdate = lua.lua_isfunction(L, -1);
       lua.lua_pop(L, 1);
+      broadcastShipUpdates();
     },
 
     callLuaUpdate(dt) {
@@ -155,6 +166,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_setglobal(L, LUA_PROJECTILES);
       explosions.length = 0;
     },
+
+    setOnShipUpdate(cb) { onShipUpdate = cb; },
   };
 
   // Initial API exposure

@@ -172,6 +172,18 @@ net.onRespawn((id, x, y) => {
   }
 });
 
+net.onLuaUpdate((updates) => {
+  for (const u of updates) {
+    const ship = ships.find(s => s.id === u.id);
+    if (ship) ship.color = u.color;
+  }
+});
+
+// Broadcast Lua ship changes over network
+luaCtx.setOnShipUpdate((updates) => {
+  if (networkMode) net.sendLuaUpdate(updates);
+});
+
 // Try to connect — if it works, switch to network mode
 const playerName = prompt('Enter your name:');
 net.connect(playerName || 'Player').then((welcome) => {
