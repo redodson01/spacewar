@@ -6,6 +6,13 @@ import { networkInterfaces } from 'os';
 import { WebSocketServer } from 'ws';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
+
+function getArg(name, defaultVal) {
+  const idx = process.argv.indexOf(name);
+  return idx >= 0 && process.argv[idx + 1] ? parseInt(process.argv[idx + 1], 10) : defaultVal;
+}
+const WORLD_WIDTH = getArg('--width', 1920);
+const WORLD_HEIGHT = getArg('--height', 1080);
 const ROOT = join(fileURLToPath(import.meta.url), '..', '..');
 
 const MIME_TYPES = {
@@ -32,6 +39,7 @@ function nextId() {
 }
 
 const scores = new Map(); // id -> score
+let lastLuaUpdate = null; // latest luaUpdate payload for new players
 
 function broadcast(sender, message) {
   const data = typeof message === 'string' ? message : JSON.stringify(message);
@@ -102,6 +110,9 @@ wss.on('connection', (ws, req) => {
     name,
     players: existingPlayers.map(p => ({ id: p.id, name: p.name })),
     scores: [...scores.entries()].map(([sid, score]) => ({ id: sid, score })),
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    luaConfig: lastLuaUpdate,
   }));
 
   // Announce to others
@@ -117,6 +128,15 @@ wss.on('connection', (ws, req) => {
       // Relay game messages to other clients
       broadcast(ws, str);
 
+      if (msg.type === 'luaUpdate') {
+        lastLuaUpdate = msg.updates;
+      }
+      if (msg.type === 'nameChange') {
+        const player = players.get(ws);
+        if (player && msg.playerId === player.id) {
+          player.name = msg.newName;
+        }
+      }
       if (msg.type === 'death') {
         if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
           scores.set(msg.killerId, scores.get(msg.killerId) + 1);
@@ -140,6 +160,9 @@ wss.on('connection', (ws, req) => {
 server.listen(PORT, () => {
   console.log(`Spacewar server listening on:`);
   console.log(`  Local:  http://localhost:${PORT}`);
+  if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
+    console.log(`  World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}`);
+  }
 
   // Find LAN IP
   const nets = networkInterfaces();

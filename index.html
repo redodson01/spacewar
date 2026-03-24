@@ -120,14 +120,25 @@
       outline: none;
     }
 
-    #hint {
+    #chat-bar {
       position: fixed;
-      bottom: 15px;
-      left: 15px;
-      color: rgba(131, 148, 150, 0.3);
-      font-size: 12px;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      display: none;
+      z-index: 20;
+    }
+    #chat-bar.open { display: flex; }
+    #chat-input {
+      flex: 1;
+      background: rgba(0, 43, 54, 0.9);
+      color: #93a1a1;
+      border: none;
+      border-top: 1px solid #073642;
+      padding: 8px 15px;
       font-family: monospace;
-      pointer-events: none;
+      font-size: 14px;
+      outline: none;
     }
   </style>
 </head>
@@ -176,7 +187,9 @@ print("Ship is now yellow!")
   </div>
 </div>
 
-<div id="hint">P1: WASD + Space | P2: Arrows + / | ` for editor</div>
+<div id="chat-bar">
+  <input id="chat-input" type="text" placeholder="Type a message..." maxlength="200">
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js" integrity="sha384-aqYZ5bBpWDOXcXQUTRXOLnaFjrqrMw1BiHjk/1cz75A3ytQtdNkW1QfTe7kTlLR6" crossorigin="anonymous"></script>
 <script type="module" src="src/main.js"></script>

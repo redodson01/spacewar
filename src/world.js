@@ -1,5 +1,15 @@
-export const WORLD_WIDTH = 1920;
-export const WORLD_HEIGHT = 1080;
+export let WORLD_WIDTH = 1920;
+export let WORLD_HEIGHT = 1080;
+
+export function setWorldSize(w, h) {
+  WORLD_WIDTH = w;
+  WORLD_HEIGHT = h;
+  // Recalculate spawn positions
+  SPAWN_POSITIONS[0] = { x: w / 4,     y: h / 4,     angle: Math.PI / 4 };
+  SPAWN_POSITIONS[1] = { x: 3 * w / 4, y: 3 * h / 4, angle: -3 * Math.PI / 4 };
+  SPAWN_POSITIONS[2] = { x: 3 * w / 4, y: h / 4,     angle: 3 * Math.PI / 4 };
+  SPAWN_POSITIONS[3] = { x: w / 4,     y: 3 * h / 4, angle: -Math.PI / 4 };
+}
 
 export const PLAYER_COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900'];
 

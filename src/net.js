@@ -14,11 +14,13 @@ export function createNetClient() {
     respawn: null,
     scores: null,
     luaUpdate: null,
+    chat: null,
+    nameChange: null,
   };
 
-  function connect(name) {
+  function connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}?name=${encodeURIComponent(name || '')}`;
+    const url = `${protocol}//${window.location.host}`;
 
     return new Promise((resolve) => {
       try {
@@ -46,7 +48,7 @@ export function createNetClient() {
             localId = msg.id;
             connected = true;
             clearTimeout(timeout);
-            resolve({ id: msg.id, name: msg.name, players: msg.players, scores: msg.scores });
+            resolve({ id: msg.id, name: msg.name, players: msg.players, scores: msg.scores, worldWidth: msg.worldWidth, worldHeight: msg.worldHeight, luaConfig: msg.luaConfig });
             break;
           case 'join':
             if (callbacks.join) callbacks.join(msg.id, msg.name);
@@ -72,6 +74,12 @@ export function createNetClient() {
           case 'luaUpdate':
             if (callbacks.luaUpdate) callbacks.luaUpdate(msg.updates);
             break;
+          case 'chat':
+            if (callbacks.chat) callbacks.chat(msg.name, msg.color, msg.text);
+            break;
+          case 'nameChange':
+            if (callbacks.nameChange) callbacks.nameChange(msg.playerId, msg.newName);
+            break;
         }
       };
 
@@ -80,9 +88,12 @@ export function createNetClient() {
         resolve(null);
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         connected = false;
         clearTimeout(timeout);
+        if (event.code === 4000) {
+          resolve({ error: event.reason || 'Game is full' });
+        }
       };
     });
   }
@@ -137,6 +148,14 @@ export function createNetClient() {
     send({ type: 'luaUpdate', updates });
   }
 
+  function sendChat(name, color, text) {
+    send({ type: 'chat', name, color, text });
+  }
+
+  function sendNameChange(playerId, newName) {
+    send({ type: 'nameChange', playerId, newName });
+  }
+
   return {
     connect,
     disconnect,
@@ -145,6 +164,8 @@ export function createNetClient() {
     sendDeath,
     sendRespawn,
     sendLuaUpdate,
+    sendChat,
+    sendNameChange,
     get isConnected() { return connected; },
     get localId() { return localId; },
     onJoin(cb) { callbacks.join = cb; },
@@ -155,6 +176,8 @@ export function createNetClient() {
     onFire(cb) { callbacks.fire = cb; },
     onDeath(cb) { callbacks.death = cb; },
     onRespawn(cb) { callbacks.respawn = cb; },
+    onChat(cb) { callbacks.chat = cb; },
+    onNameChange(cb) { callbacks.nameChange = cb; },
   };
 }
 

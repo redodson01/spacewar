@@ -42,7 +42,7 @@ end
 print("Orbiting...")`,
 };
 
-export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn, clearInputFn, canOpenEditor = () => true) {
+export function createEditor({ editor, scriptArea, outputDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn, clearInputFn, canOpenEditor = () => true) {
   let editorOpen = false;
   let lastEditorFocus = null;
 
@@ -205,9 +205,6 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
       this.value = '';
     }
   });
-
-  // Hide hint after a few seconds
-  setTimeout(() => { hintDiv.style.transition = 'opacity 1s'; hintDiv.style.opacity = '0'; }, 5000);
 
   return { toggleEditor, appendOutput };
 }
