@@ -46,8 +46,8 @@ export function createLeaderboard() {
     let y = 25;
 
     const col2 = x + 50;
-    ctx.fillStyle = '#888';
-    ctx.shadowColor = '#888';
+    ctx.fillStyle = '#839496';
+    ctx.shadowColor = '#839496';
     ctx.shadowBlur = 6;
     ctx.textAlign = 'right';
     ctx.fillText('SCORE', col2, y);

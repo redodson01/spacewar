@@ -218,7 +218,7 @@ function applyWorldTransform() {
 }
 
 function drawWorldBorder() {
-  ctx.strokeStyle = '#333';
+  ctx.strokeStyle = '#073642';
   ctx.lineWidth = 2;
   ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 }
