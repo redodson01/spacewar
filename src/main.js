@@ -6,7 +6,7 @@ import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } fr
 import { checkShipProjectileCollision, checkShipShipCollision } from './collision.js';
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
-import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, setWorldSize } from './world.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, MAX_PLAYERS, setWorldSize } from './world.js';
 import { getAIActions } from './ai.js';
 import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
@@ -327,6 +327,32 @@ luaCtx.setOnNameChange((playerId, newName) => {
     saveName(newName);
   }
   if (networkMode) net.sendNameChange(playerId, newName);
+});
+
+luaCtx.setOnAIAdd(() => {
+  // Find lowest free ID
+  let id = -1;
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    if (!ships.find(s => s.id === i)) { id = i; break; }
+  }
+  if (id < 0) return -1;
+  const ship = makeShip(id);
+  ship.isLocal = true;
+  ship.isAI = true;
+  ship.name = `Bot ${id + 1}`;
+  ships.push(ship);
+  leaderboard.addPlayer(id, ship.name, ship.config.color);
+  if (networkMode) net.sendAIJoin(id, ship.name);
+  return id;
+});
+
+luaCtx.setOnAIRemove((id) => {
+  const idx = ships.findIndex(s => s.id === id);
+  if (idx >= 0) {
+    ships.splice(idx, 1);
+    leaderboard.removePlayer(id);
+    if (networkMode) net.sendAILeave(id);
+  }
 });
 
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally

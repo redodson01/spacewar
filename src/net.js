@@ -2,7 +2,7 @@ export function createNetClient() {
   let ws = null;
   let localId = null;
   let connected = false;
-  let lastSendTime = 0;
+  const lastSendTimes = new Map();
   const SEND_INTERVAL = 50; // 20Hz
 
   const callbacks = {
@@ -109,17 +109,19 @@ export function createNetClient() {
 
   function send(msg) {
     if (ws && connected) {
-      msg.id = localId;
+      if (msg.id === undefined) msg.id = localId;
       ws.send(JSON.stringify(msg));
     }
   }
 
   function sendState(ship) {
     const now = performance.now();
-    if (now - lastSendTime < SEND_INTERVAL) return;
-    lastSendTime = now;
+    const lastTime = lastSendTimes.get(ship.id) || 0;
+    if (now - lastTime < SEND_INTERVAL) return;
+    lastSendTimes.set(ship.id, now);
     const s = ship.state;
     send({
+      id: ship.id,
       type: 'state',
       x: s.x, y: s.y, angle: s.angle,
       vx: s.vx, vy: s.vy,
@@ -130,18 +132,26 @@ export function createNetClient() {
   function sendFire(ship) {
     const s = ship.state;
     send({
-      type: 'fire',
+      id: ship.id, type: 'fire',
       x: s.x, y: s.y, angle: s.angle,
       vx: s.vx, vy: s.vy,
     });
   }
 
   function sendDeath(ship, killerId = null, cause = 'projectile') {
-    send({ type: 'death', x: ship.state.x, y: ship.state.y, killerId, cause });
+    send({ id: ship.id, type: 'death', x: ship.state.x, y: ship.state.y, killerId, cause });
   }
 
   function sendRespawn(ship) {
-    send({ type: 'respawn', x: ship.state.x, y: ship.state.y });
+    send({ id: ship.id, type: 'respawn', x: ship.state.x, y: ship.state.y });
+  }
+
+  function sendAIJoin(id, name) {
+    send({ type: 'aiJoin', aiId: id, name });
+  }
+
+  function sendAILeave(id) {
+    send({ type: 'aiLeave', aiId: id });
   }
 
   function sendLuaUpdate(updates) {
@@ -166,6 +176,8 @@ export function createNetClient() {
     sendLuaUpdate,
     sendChat,
     sendNameChange,
+    sendAIJoin,
+    sendAILeave,
     get isConnected() { return connected; },
     get localId() { return localId; },
     onJoin(cb) { callbacks.join = cb; },

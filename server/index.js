@@ -30,10 +30,11 @@ const MAX_PLAYERS = 8;
 
 // Player management
 const players = new Map(); // ws -> { id, color, name }
+const aiIds = new Map(); // aiId -> ownerWs (tracks which connection owns which AI)
 
 function nextId() {
   for (let i = 0; i < MAX_PLAYERS; i++) {
-    if (![...players.values()].some(p => p.id === i)) return i;
+    if (![...players.values()].some(p => p.id === i) && !aiIds.has(i)) return i;
   }
   return -1;
 }
@@ -108,7 +109,10 @@ wss.on('connection', (ws, req) => {
     type: 'welcome',
     id,
     name,
-    players: existingPlayers.map(p => ({ id: p.id, name: p.name })),
+    players: [
+      ...existingPlayers.map(p => ({ id: p.id, name: p.name })),
+      ...[...aiIds.keys()].map(aiId => ({ id: aiId, name: `Bot ${aiId + 1}`, isAI: true })),
+    ],
     scores: [...scores.entries()].map(([sid, score]) => ({ id: sid, score })),
     worldWidth: WORLD_WIDTH,
     worldHeight: WORLD_HEIGHT,
@@ -134,6 +138,16 @@ wss.on('connection', (ws, req) => {
           player.name = msg.newName;
         }
       }
+      if (msg.type === 'aiJoin') {
+        aiIds.set(msg.aiId, ws);
+        scores.set(msg.aiId, 0);
+        broadcast(ws, { type: 'join', id: msg.aiId, name: msg.name });
+      }
+      if (msg.type === 'aiLeave') {
+        aiIds.delete(msg.aiId);
+        scores.delete(msg.aiId);
+        broadcast(ws, { type: 'leave', id: msg.aiId });
+      }
       if (msg.type === 'death') {
         if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
           scores.set(msg.killerId, scores.get(msg.killerId) + 1);
@@ -150,6 +164,14 @@ wss.on('connection', (ws, req) => {
     players.delete(ws);
     scores.delete(id);
     broadcast(null, { type: 'leave', id });
+    // Clean up AI ships owned by this connection
+    for (const [aiId, owner] of aiIds) {
+      if (owner === ws) {
+        aiIds.delete(aiId);
+        scores.delete(aiId);
+        broadcast(null, { type: 'leave', id: aiId });
+      }
+    }
   });
 });
 
