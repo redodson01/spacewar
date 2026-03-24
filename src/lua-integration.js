@@ -76,12 +76,22 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     }
   }
 
-  function broadcastShipUpdates() {
-    if (onShipUpdate) {
-      onShipUpdate(ships.map(s => ({
-        id: s.id, ...s.config,
-      })));
+  let lastConfigSnapshot = '';
+  let lastBroadcastTime = 0;
+  const BROADCAST_INTERVAL = 50; // 20Hz
+
+  function broadcastShipUpdates(throttle = false) {
+    if (!onShipUpdate) return;
+    const updates = ships.map(s => ({ id: s.id, ...s.config }));
+    if (throttle) {
+      const snapshot = JSON.stringify(updates);
+      if (snapshot === lastConfigSnapshot) return;
+      const now = performance.now();
+      if (now - lastBroadcastTime < BROADCAST_INTERVAL) return;
+      lastConfigSnapshot = snapshot;
+      lastBroadcastTime = now;
     }
+    onShipUpdate(updates);
   }
 
   const ctx = {
@@ -175,6 +185,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         appendOutput('onUpdate error: ' + err, true);
         ctx.hasOnUpdate = false;
       }
+      broadcastShipUpdates(true); // throttled — only sends if config changed
     },
 
     reset() {
