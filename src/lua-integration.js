@@ -35,6 +35,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       callLuaUpdate(_dt) {},
       reset() {},
       setOnShipUpdate(cb) { onShipUpdate = cb; },
+      broadcastShipUpdates() {},
     };
   }
 
@@ -188,6 +189,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     },
 
     setOnShipUpdate(cb) { onShipUpdate = cb; },
+    broadcastShipUpdates,
   };
 
   // Initial API exposure

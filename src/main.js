@@ -107,6 +107,10 @@ net.onJoin((id, name) => {
   ships.push(ship);
   leaderboard.addPlayer(id, name, PLAYER_COLORS[id]);
   luaCtx.reset();
+  // Lua host re-broadcasts config so the new player gets any overrides
+  if (net.localId === 0) {
+    luaCtx.broadcastShipUpdates();
+  }
 });
 
 net.onLeave((id) => {
