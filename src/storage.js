@@ -67,8 +67,11 @@ export function saveChatHistory(history) {
 
 export function clearAll() {
   try {
-    localStorage.removeItem(PREFIX + 'repl-history');
-    localStorage.removeItem(PREFIX + 'script');
-    localStorage.removeItem(PREFIX + 'chat-history');
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith(PREFIX)) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
   } catch { /* ignore errors */ }
 }
