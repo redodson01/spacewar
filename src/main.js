@@ -1,4 +1,4 @@
-import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn } from './ship.js';
+import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn, tickInvulnerable } from './ship.js';
 import { createInputManager, PLAYER_BINDINGS, getActions } from './input.js';
 import { createStars, resizeStars, drawStars } from './stars.js';
 import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
@@ -256,13 +256,14 @@ function gameLoop(time) {
       // Remote ship: apply interpolated state from network
       interpolator.apply(ship, dt);
     }
+    tickInvulnerable(ship, dt);
   }
 
   updateProjectiles(projectiles, dt, WORLD_WIDTH, WORLD_HEIGHT);
 
   // Collision: projectiles vs all ships
   for (const ship of ships) {
-    if (!ship.destroyed) {
+    if (!ship.destroyed && ship.invulnerableTimer <= 0) {
       const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
         const killerId = projectiles[hitIdx].ownerId;
@@ -281,7 +282,7 @@ function gameLoop(time) {
   // Ship-ship collision: all pairs
   for (let i = 0; i < ships.length; i++) {
     for (let j = i + 1; j < ships.length; j++) {
-      if (checkShipShipCollision(ships[i], ships[j])) {
+      if (ships[i].invulnerableTimer <= 0 && ships[j].invulnerableTimer <= 0 && checkShipShipCollision(ships[i], ships[j])) {
         spawnExplosion(explosions, ships[i].x, ships[i].y, ships[i].color);
         spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color);
         destroyShip(ships[i]);

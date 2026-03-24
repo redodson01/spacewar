@@ -13,6 +13,7 @@ export const SHIP_DEFAULTS = {
   respawnTimer: 0,
   thrusting: false,
   showName: false,
+  invulnerableTimer: 0,
 };
 
 export function createShip(id, x, y, color = SHIP_DEFAULTS.color) {
@@ -21,11 +22,18 @@ export function createShip(id, x, y, color = SHIP_DEFAULTS.color) {
 
 export function resetShip(ship, centerX, centerY) {
   const { color, spawnAngle } = ship;
-  Object.assign(ship, SHIP_DEFAULTS, { x: centerX, y: centerY, color });
+  Object.assign(ship, SHIP_DEFAULTS, { x: centerX, y: centerY, color, invulnerableTimer: INVULNERABLE_DURATION });
   if (spawnAngle !== undefined) ship.angle = spawnAngle;
 }
 
+export function tickInvulnerable(ship, dt) {
+  if (ship.invulnerableTimer > 0) {
+    ship.invulnerableTimer = Math.max(0, ship.invulnerableTimer - dt);
+  }
+}
+
 export const RESPAWN_DELAY = 2.0;
+export const INVULNERABLE_DURATION = 2.0;
 
 export function destroyShip(ship) {
   ship.destroyed = true;
@@ -66,6 +74,8 @@ export function updateShip(ship, actions, canvasWidth, canvasHeight) {
 
 export function drawShip(ctx, ship) {
   if (ship.destroyed) return;
+  // Blink while invulnerable (8Hz flash)
+  if (ship.invulnerableTimer > 0 && Math.floor(ship.invulnerableTimer * 8) % 2 === 0) return;
   const { x, y, angle, radius, color } = ship;
   const nose  = { x: x + Math.cos(angle) * radius,       y: y + Math.sin(angle) * radius };
   const left  = { x: x + Math.cos(angle + 2.4) * radius, y: y + Math.sin(angle + 2.4) * radius };
