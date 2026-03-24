@@ -7,7 +7,9 @@ import { createInterface } from 'readline';
 import { WebSocketServer } from 'ws';
 import { createServerLua, createShip as createLuaShip } from './lua.js';
 import { getAIActions } from '../src/ai.js';
-import { PROJECTILE_DEFAULTS } from '../src/projectiles.js';
+import { updateShip, destroyShip, tickRespawn, tickInvulnerable } from '../src/ship.js';
+import { PROJECTILE_DEFAULTS, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
+import { checkShipProjectileCollision, checkShipShipCollision } from '../src/collision.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -138,75 +140,43 @@ const serverLua = createServerLua(ships, {
 
 serverLua.exposeScreen(WORLD_WIDTH, WORLD_HEIGHT);
 
-// --- Server-side AI game loop ---
-const serverProjectiles = []; // projectiles for AI dodging awareness
-const INVULNERABLE_DURATION = 2.0;
+// --- Server-side AI game loop (uses same modules as client) ---
+const serverProjectiles = [];
 const SEND_INTERVAL = 50; // 20Hz
 const lastAISendTimes = new Map();
 
+function isServerAI(ship) {
+  return ship.isAI && aiIds.get(ship.id) === 'server';
+}
+
+let lastTickTime = Date.now();
 setInterval(() => {
-  const dt = 1 / 60; // 60Hz tick to match client frame rate
+  const now = Date.now();
+  const dt = (now - lastTickTime) / 1000;
+  lastTickTime = now;
 
+  // Update server AI ships (same logic as client game loop)
   for (const ship of ships) {
-    if (!ship.isAI || aiIds.get(ship.id) !== 'server') continue;
+    if (!isServerAI(ship)) continue;
 
-    // Respawn logic
-    if (ship.state.destroyed) {
-      ship.state.respawnTimer -= dt;
-      if (ship.state.respawnTimer <= 0) {
-        const spawn = SPAWN_POSITIONS[ship.id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
-        Object.assign(ship.state, {
-          x: spawn.x, y: spawn.y, angle: spawn.angle,
-          vx: 0, vy: 0, destroyed: false, respawnTimer: 0,
-          invulnerableTimer: INVULNERABLE_DURATION, fireCooldownTimer: 0, thrusting: false,
-        });
-        broadcastAll({ type: 'respawn', id: ship.id, x: ship.state.x, y: ship.state.y });
-      }
-      continue;
+    const respawned = tickRespawn(ship, dt);
+    if (respawned) {
+      broadcastAll({ type: 'respawn', id: ship.id, x: ship.state.x, y: ship.state.y });
     }
 
-    // Invulnerability
-    if (ship.state.invulnerableTimer > 0) {
-      ship.state.invulnerableTimer = Math.max(0, ship.state.invulnerableTimer - dt);
-    }
-
-    // AI decision
     const actions = getAIActions(ship, ships, serverProjectiles, WORLD_WIDTH, WORLD_HEIGHT);
-    const s = ship.state;
-    const c = ship.config;
+    updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
+    tickFireCooldown(ship, dt);
+    tickInvulnerable(ship, dt);
 
-    s.thrusting = !!actions.thrust;
-    if (actions.left) s.angle -= c.turnSpeed;
-    if (actions.right) s.angle += c.turnSpeed;
-    if (actions.thrust) {
-      s.vx += Math.cos(s.angle) * c.thrust;
-      s.vy += Math.sin(s.angle) * c.thrust;
-    }
-    s.vx *= c.friction;
-    s.vy *= c.friction;
-    s.x += s.vx;
-    s.y += s.vy;
-    if (s.x < 0) s.x = WORLD_WIDTH;
-    if (s.x > WORLD_WIDTH) s.x = 0;
-    if (s.y < 0) s.y = WORLD_HEIGHT;
-    if (s.y > WORLD_HEIGHT) s.y = 0;
-
-    // Fire
-    s.fireCooldownTimer = Math.max(0, s.fireCooldownTimer - dt);
-    if (actions.fire && s.fireCooldownTimer <= 0) {
-      s.fireCooldownTimer = c.fireCooldown;
-      broadcastAll({
-        type: 'fire', id: ship.id,
-        x: s.x, y: s.y, angle: s.angle, vx: s.vx, vy: s.vy,
-      });
-      // Also add to server projectiles for AI dodging
-      serverProjectiles.push({
-        x: s.x + Math.cos(s.angle) * c.radius,
-        y: s.y + Math.sin(s.angle) * c.radius,
-        vx: s.vx + Math.cos(s.angle) * PROJECTILE_DEFAULTS.speed,
-        vy: s.vy + Math.sin(s.angle) * PROJECTILE_DEFAULTS.speed,
-        age: 0, ownerId: ship.id,
-      });
+    if (actions.fire && !ship.state.destroyed) {
+      if (fireProjectile(serverProjectiles, ship)) {
+        const s = ship.state;
+        broadcastAll({
+          type: 'fire', id: ship.id,
+          x: s.x, y: s.y, angle: s.angle, vx: s.vx, vy: s.vy,
+        });
+      }
     }
 
     // Send state at 20Hz
@@ -214,6 +184,7 @@ setInterval(() => {
     const lastTime = lastAISendTimes.get(ship.id) || 0;
     if (now - lastTime >= SEND_INTERVAL) {
       lastAISendTimes.set(ship.id, now);
+      const s = ship.state;
       broadcastAll({
         type: 'state', id: ship.id,
         x: s.x, y: s.y, angle: s.angle,
@@ -223,69 +194,50 @@ setInterval(() => {
     }
   }
 
-  // Update server projectiles
-  for (let i = serverProjectiles.length - 1; i >= 0; i--) {
-    const p = serverProjectiles[i];
-    p.x += p.vx; p.y += p.vy; p.age += dt;
-    if (p.age > 4 || p.x < 0 || p.x > WORLD_WIDTH || p.y < 0 || p.y > WORLD_HEIGHT) {
-      serverProjectiles.splice(i, 1);
-    }
-  }
+  // Update projectiles (same function as client)
+  updateProjectiles(serverProjectiles, dt, WORLD_WIDTH, WORLD_HEIGHT);
 
-  // Collision detection for server AI ships
+  // Collision: projectiles vs server AI ships (same function as client)
   for (const ship of ships) {
-    if (!ship.isAI || aiIds.get(ship.id) !== 'server') continue;
-    if (ship.state.destroyed || ship.state.invulnerableTimer > 0) continue;
-
-    for (let i = 0; i < serverProjectiles.length; i++) {
-      const p = serverProjectiles[i];
-      if (p.ownerId === ship.id) continue; // no self-fire
-      const dx = ship.state.x - p.x;
-      const dy = ship.state.y - p.y;
-      if (Math.sqrt(dx * dx + dy * dy) < ship.config.radius + 4) {
-        // Hit!
-        ship.state.destroyed = true;
-        ship.state.respawnTimer = 2.0;
-        serverProjectiles.splice(i, 1);
+    if (!isServerAI(ship)) continue;
+    if (!ship.state.destroyed && ship.state.invulnerableTimer <= 0) {
+      const hitIdx = checkShipProjectileCollision(ship, serverProjectiles);
+      if (hitIdx >= 0) {
+        const killerId = serverProjectiles[hitIdx].ownerId;
+        serverProjectiles.splice(hitIdx, 1);
+        destroyShip(ship);
         broadcastAll({
           type: 'death', id: ship.id,
           x: ship.state.x, y: ship.state.y,
-          killerId: p.ownerId, cause: 'projectile',
+          killerId, cause: 'projectile',
         });
-        // Score
-        if (scores.has(p.ownerId)) {
-          scores.set(p.ownerId, scores.get(p.ownerId) + 1);
+        if (scores.has(killerId)) {
+          scores.set(killerId, scores.get(killerId) + 1);
         }
         broadcastScores();
-        const killer = ships.find(s => s.id === p.ownerId);
-        console.log(`[kill] ${killer?.name || 'Player ' + (p.ownerId + 1)} killed ${ship.name || 'Bot ' + (ship.id + 1)}`);
-        break;
+        const killer = ships.find(s => s.id === killerId);
+        console.log(`[kill] ${killer?.name || 'Player ' + (killerId + 1)} killed ${ship.name || 'Bot'}`);
       }
     }
   }
 
-  // Ship-ship collision for server AI
-  for (const ship of ships) {
-    if (!ship.isAI || aiIds.get(ship.id) !== 'server') continue;
-    if (ship.state.destroyed || ship.state.invulnerableTimer > 0) continue;
-
-    for (const other of ships) {
-      if (other === ship || other.state.destroyed || other.state.invulnerableTimer > 0) continue;
-      const dx = ship.state.x - other.state.x;
-      const dy = ship.state.y - other.state.y;
-      if (Math.sqrt(dx * dx + dy * dy) < ship.config.radius + (other.config?.radius || 20)) {
-        ship.state.destroyed = true;
-        ship.state.respawnTimer = 2.0;
-        broadcastAll({
-          type: 'death', id: ship.id,
-          x: ship.state.x, y: ship.state.y,
-          killerId: null, cause: 'collision',
-        });
-        if (scores.has(ship.id)) {
-          scores.set(ship.id, scores.get(ship.id) - 1);
+  // Ship-ship collision for server AI (same function as client)
+  for (let i = 0; i < ships.length; i++) {
+    for (let j = i + 1; j < ships.length; j++) {
+      if (!isServerAI(ships[i]) && !isServerAI(ships[j])) continue;
+      if (ships[i].state.invulnerableTimer > 0 || ships[j].state.invulnerableTimer > 0) continue;
+      if (checkShipShipCollision(ships[i], ships[j])) {
+        if (isServerAI(ships[i])) {
+          destroyShip(ships[i]);
+          broadcastAll({ type: 'death', id: ships[i].id, x: ships[i].state.x, y: ships[i].state.y, killerId: null, cause: 'collision' });
+          if (scores.has(ships[i].id)) scores.set(ships[i].id, scores.get(ships[i].id) - 1);
+        }
+        if (isServerAI(ships[j])) {
+          destroyShip(ships[j]);
+          broadcastAll({ type: 'death', id: ships[j].id, x: ships[j].state.x, y: ships[j].state.y, killerId: null, cause: 'collision' });
+          if (scores.has(ships[j].id)) scores.set(ships[j].id, scores.get(ships[j].id) - 1);
         }
         broadcastScores();
-        break;
       }
     }
   }
