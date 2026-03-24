@@ -7,6 +7,7 @@ import { checkShipProjectileCollision, checkShipShipCollision } from './collisio
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
 import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS } from './world.js';
+import { createLeaderboard } from './leaderboard.js';
 import { createNetClient, createInterpolator } from './net.js';
 
 // Canvas
@@ -23,6 +24,7 @@ const projectiles = createProjectiles();
 const explosions = createExplosions();
 const input = createInputManager(['script-input', 'repl-input']);
 input.attach(window);
+const leaderboard = createLeaderboard();
 
 // Networking
 const net = createNetClient();
@@ -40,7 +42,11 @@ function makeShip(id) {
 function initLocalMode() {
   ships.length = 0;
   ships.push(makeShip(0), makeShip(1));
-  for (const s of ships) s.isLocal = true;
+  for (const s of ships) {
+    s.isLocal = true;
+    s.name = `Player ${s.id + 1}`;
+    leaderboard.addPlayer(s.id, s.name, s.color);
+  }
 }
 
 initLocalMode();
@@ -99,6 +105,7 @@ net.onJoin((id, _color, name) => {
   ship.isLocal = false;
   ship.name = name;
   ships.push(ship);
+  leaderboard.addPlayer(id, name, PLAYER_COLORS[id]);
   luaCtx.reset();
 });
 
@@ -107,7 +114,7 @@ net.onLeave((id) => {
   if (idx >= 0) {
     ships.splice(idx, 1);
     interpolator.remove(id);
-    // Remove projectiles owned by the leaving player
+    leaderboard.removePlayer(id);
     for (let i = projectiles.length - 1; i >= 0; i--) {
       if (projectiles[i].ownerId === id) projectiles.splice(i, 1);
     }
@@ -135,13 +142,14 @@ net.onFire((id, data) => {
   });
 });
 
-net.onHit((targetId, _x, _y, _color) => {
+net.onHit((targetId, killerId, _x, _y, _color) => {
   // Another client says we got hit
   const ship = ships.find(s => s.id === targetId && s.isLocal);
   if (ship && !ship.destroyed) {
     spawnExplosion(explosions, ship.x, ship.y, ship.color);
     destroyShip(ship);
     net.sendDeath(ship);
+    leaderboard.recordKill(killerId);
   }
 });
 
@@ -184,6 +192,11 @@ net.connect(playerName || 'Player').then((welcome) => {
     ship.isLocal = false;
     ship.name = p.name;
     ships.push(ship);
+  }
+
+  leaderboard.addPlayer(welcome.id, welcome.name, PLAYER_COLORS[welcome.id]);
+  for (const p of welcome.players) {
+    leaderboard.addPlayer(p.id, p.name, p.color);
   }
 
   luaCtx.reset();
@@ -251,12 +264,14 @@ function gameLoop(time) {
     if (!ship.destroyed) {
       const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
+        const killerId = projectiles[hitIdx].ownerId;
         spawnExplosion(explosions, ship.x, ship.y, ship.color);
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
+        leaderboard.recordKill(killerId);
         if (networkMode) {
           if (ship.isLocal) net.sendDeath(ship);
-          else net.sendHit(ship);
+          else net.sendHit(ship, killerId);
         }
       }
     }
@@ -270,11 +285,12 @@ function gameLoop(time) {
         spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color);
         destroyShip(ships[i]);
         destroyShip(ships[j]);
+        leaderboard.recordCollision(ships[i].id, ships[j].id);
         if (networkMode) {
           if (ships[i].isLocal) net.sendDeath(ships[i]);
-          else net.sendHit(ships[i]);
+          else net.sendHit(ships[i], null);
           if (ships[j].isLocal) net.sendDeath(ships[j]);
-          else net.sendHit(ships[j]);
+          else net.sendHit(ships[j], null);
         }
       }
     }
@@ -289,6 +305,9 @@ function gameLoop(time) {
   }
 
   ctx.restore();
+
+  // Leaderboard in screen space
+  leaderboard.draw(ctx);
 
   requestAnimationFrame(gameLoop);
 }

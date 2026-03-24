@@ -60,7 +60,7 @@ export function createNetClient() {
             if (callbacks.fire) callbacks.fire(msg.id, msg);
             break;
           case 'hit':
-            if (callbacks.hit) callbacks.hit(msg.targetId, msg.x, msg.y, msg.color);
+            if (callbacks.hit) callbacks.hit(msg.targetId, msg.killerId, msg.x, msg.y, msg.color);
             break;
           case 'death':
             if (callbacks.death) callbacks.death(msg.id, msg.x, msg.y, msg.color);
@@ -127,8 +127,8 @@ export function createNetClient() {
     });
   }
 
-  function sendHit(targetShip) {
-    send({ type: 'hit', targetId: targetShip.id, x: targetShip.x, y: targetShip.y, color: targetShip.color });
+  function sendHit(targetShip, killerId) {
+    send({ type: 'hit', targetId: targetShip.id, killerId, x: targetShip.x, y: targetShip.y, color: targetShip.color });
   }
 
   function sendDeath(ship) {
