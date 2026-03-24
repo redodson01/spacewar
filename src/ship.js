@@ -70,23 +70,24 @@ export function tickInvulnerable(ship, dt) {
   }
 }
 
-export function updateShip(ship, actions, canvasWidth, canvasHeight) {
+export function updateShip(ship, actions, canvasWidth, canvasHeight, dt = 1 / 60) {
   const s = ship.state;
   const c = ship.config;
   if (s.destroyed) return;
+  const scale = dt * 60; // normalize to 60fps reference rate
   s.thrusting = !!actions.thrust;
-  if (actions.left) s.angle -= c.turnSpeed;
-  if (actions.right) s.angle += c.turnSpeed;
+  if (actions.left) s.angle -= c.turnSpeed * scale;
+  if (actions.right) s.angle += c.turnSpeed * scale;
 
   if (actions.thrust) {
-    s.vx += Math.cos(s.angle) * c.thrust;
-    s.vy += Math.sin(s.angle) * c.thrust;
+    s.vx += Math.cos(s.angle) * c.thrust * scale;
+    s.vy += Math.sin(s.angle) * c.thrust * scale;
   }
 
-  s.vx *= c.friction;
-  s.vy *= c.friction;
-  s.x += s.vx;
-  s.y += s.vy;
+  s.vx *= Math.pow(c.friction, scale);
+  s.vy *= Math.pow(c.friction, scale);
+  s.x += s.vx * scale;
+  s.y += s.vy * scale;
 
   if (s.x < 0) s.x = canvasWidth;
   if (s.x > canvasWidth) s.x = 0;

@@ -93,11 +93,11 @@ describe('updateProjectiles', () => {
   const W = 800;
   const H = 600;
 
-  it('moves projectiles by their velocity', () => {
+  it('moves projectiles by their velocity scaled by dt', () => {
     const projectiles = [{ x: 100, y: 100, vx: 5, vy: -3, age: 0, lifetime: 2, radius: 2, color: '#ff0' }];
-    updateProjectiles(projectiles, 0.016, W, H);
-    expect(projectiles[0].x).toBe(105);
-    expect(projectiles[0].y).toBe(97);
+    updateProjectiles(projectiles, 1 / 60, W, H);
+    expect(projectiles[0].x).toBe(105); // 100 + 5 * (1/60 * 60)
+    expect(projectiles[0].y).toBe(97);  // 100 + (-3) * (1/60 * 60)
   });
 
   it('increments age by dt', () => {

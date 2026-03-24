@@ -477,7 +477,7 @@ function drawWorldBorder() {
 let lastTime = 0;
 
 function gameLoop(time) {
-  const dt = lastTime ? (time - lastTime) / 1000 : 0;
+  const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
   lastTime = time;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -502,7 +502,7 @@ function gameLoop(time) {
       const respawned = tickRespawn(ship, dt);
       if (networkMode && respawned) net.sendRespawn(ship);
 
-      updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
+      updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT, dt);
       tickFireCooldown(ship, dt);
       if (actions.fire && !ship.state.destroyed) {
         if (fireProjectile(projectiles, ship)) {

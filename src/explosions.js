@@ -28,8 +28,9 @@ export function spawnExplosion(explosions, x, y, color, particles = EXPLOSION_DE
 export function updateExplosions(explosions, dt) {
   for (let i = explosions.length - 1; i >= 0; i--) {
     const p = explosions[i];
-    p.x += p.vx;
-    p.y += p.vy;
+    const scale = dt * 60;
+    p.x += p.vx * scale;
+    p.y += p.vy * scale;
     p.age += dt;
     p.opacity = Math.max(0, 1 - p.age / p.lifetime);
 

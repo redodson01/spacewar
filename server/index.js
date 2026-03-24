@@ -141,7 +141,7 @@ function isServerAI(ship) {
 let lastTickTime = Date.now();
 setInterval(() => {
   const now = Date.now();
-  const dt = (now - lastTickTime) / 1000;
+  const dt = Math.min((now - lastTickTime) / 1000, 0.05);
   lastTickTime = now;
 
   // Update server AI ships (same logic as client game loop)
@@ -154,7 +154,7 @@ setInterval(() => {
     }
 
     const actions = getAIActions(ship, ships, serverProjectiles, WORLD_WIDTH, WORLD_HEIGHT);
-    updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
+    updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT, dt);
     tickFireCooldown(ship, dt);
     tickInvulnerable(ship, dt);
 
