@@ -10,7 +10,7 @@ import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, setWorldSize
 import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
-import { loadName, saveName } from './storage.js';
+import { loadName, saveName, loadChatHistory, saveChatHistory } from './storage.js';
 
 // Canvas
 const canvas = document.getElementById('game');
@@ -190,8 +190,8 @@ net.onChat((name, color, text) => {
 const chatBar = document.getElementById('chat-bar');
 const chatInput = document.getElementById('chat-input');
 let chatOpen = false;
-const chatHistory = [];
-let chatHistoryIdx = 0;
+const chatHistory = loadChatHistory();
+let chatHistoryIdx = chatHistory.length;
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Enter' && !chatOpen && networkMode && e.target === document.body) {
@@ -210,20 +210,23 @@ chatInput.addEventListener('keydown', (e) => {
     if (text) {
       if (chatHistory[chatHistory.length - 1] !== text) {
         chatHistory.push(text);
+        saveChatHistory(chatHistory);
       }
       chatHistoryIdx = chatHistory.length;
       if (text.startsWith('/')) {
-        // Run as Lua command — output goes to both editor and chat
+        // Run as Lua command — output goes to editor, chat, and network
         const origAppendOutput = appendOutput;
         const chatOutputs = [];
         appendOutput = (t, isError) => {
           origAppendOutput(t, isError);
-          chatOutputs.push(t);
+          // Skip the echo line ("> command")
+          if (!t.startsWith('> ')) chatOutputs.push(t);
         };
         luaCtx.runLuaREPL(text.slice(1));
         appendOutput = origAppendOutput;
         for (const line of chatOutputs) {
           chat.addMessage('Lua', '#2aa198', line);
+          net.sendChat('Lua', '#2aa198', line);
         }
       } else {
         const localShip = ships.find(s => s.isLocal);
@@ -274,7 +277,10 @@ net.onNameChange((playerId, newName) => {
 luaCtx.setOnNameChange((playerId, newName) => {
   leaderboard.updateName(playerId, newName);
   const ship = ships.find(s => s.id === playerId);
-  if (ship && ship.isLocal) saveName(newName);
+  if (ship && ship.isLocal) {
+    saveName(newName, playerId);
+    saveName(newName);
+  }
   if (networkMode) net.sendNameChange(playerId, newName);
 });
 
@@ -285,11 +291,21 @@ luaCtx.setOnShipUpdate((updates) => {
 });
 
 // Try to connect — if it works, switch to network mode
-const savedName = loadName();
-const playerName = prompt('Enter your name:', savedName || '');
-if (playerName) saveName(playerName);
-net.connect(playerName || 'Player').then((welcome) => {
+net.connect().then((welcome) => {
   if (!welcome) return;
+
+  // Resolve player name: check per-slot storage, then prompt
+  const savedSlotName = loadName(welcome.id);
+  let playerName;
+  if (savedSlotName) {
+    playerName = savedSlotName;
+  } else {
+    const savedGenericName = loadName();
+    playerName = prompt('Enter your name:', savedGenericName || '');
+  }
+  playerName = playerName || 'Player';
+  saveName(playerName, welcome.id);
+  saveName(playerName); // also save as generic fallback
 
   networkMode = true;
 
@@ -307,8 +323,13 @@ net.connect(playerName || 'Player').then((welcome) => {
 
   const localShip = makeShip(welcome.id);
   localShip.isLocal = true;
-  localShip.name = welcome.name;
+  localShip.name = playerName;
   ships.push(localShip);
+
+  // Send name update if different from server default
+  if (playerName !== welcome.name) {
+    net.sendNameChange(welcome.id, playerName);
+  }
 
   for (const p of welcome.players) {
     const ship = makeShip(p.id);
@@ -317,11 +338,22 @@ net.connect(playerName || 'Player').then((welcome) => {
     ships.push(ship);
   }
 
-  leaderboard.addPlayer(welcome.id, welcome.name, PLAYER_COLORS[welcome.id]);
+  leaderboard.addPlayer(welcome.id, playerName, PLAYER_COLORS[welcome.id]);
   for (const p of welcome.players) {
     leaderboard.addPlayer(p.id, p.name, PLAYER_COLORS[p.id]);
   }
   if (welcome.scores) leaderboard.setScores(welcome.scores);
+
+  // Apply stored Lua config overrides from server
+  if (welcome.luaConfig) {
+    for (const u of welcome.luaConfig) {
+      const ship = ships.find(s => s.id === u.id);
+      if (!ship) continue;
+      Object.assign(ship.config, u);
+      delete ship.config.id;
+      leaderboard.updateColor(u.id, u.color);
+    }
+  }
 
   luaCtx.reset();
   elements.hintDiv.textContent = 'WASD + Space | ` for editor';
