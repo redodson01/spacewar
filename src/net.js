@@ -203,10 +203,15 @@ import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
 
 export function createInterpolator() {
   const states = new Map(); // id -> { prev, next, t }
-  const suppressed = new Set(); // IDs to ignore state updates (locally destroyed)
+  const suppressed = new Map(); // id -> expiry timestamp
 
   function onState(id, snapshot) {
-    if (suppressed.has(id)) return; // skip — waiting for authoritative death/respawn
+    // Skip state updates for locally destroyed ships (waiting for server confirmation)
+    const expiry = suppressed.get(id);
+    if (expiry) {
+      if (Date.now() < expiry) return;
+      suppressed.delete(id); // timeout — unsuppress
+    }
     const entry = states.get(id);
     if (entry) {
       entry.prev = entry.next;
@@ -239,7 +244,7 @@ export function createInterpolator() {
   }
 
   function suppress(id) {
-    suppressed.add(id);
+    suppressed.set(id, Date.now() + 500); // auto-unsuppress after 500ms
     states.delete(id);
   }
 
