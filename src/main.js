@@ -57,8 +57,13 @@ function initLocalMode() {
 let p2Joined = false;
 function joinP2() {
   if (p2Joined || networkMode) return;
+  let id = -1;
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    if (!ships.find(s => s.id === i)) { id = i; break; }
+  }
+  if (id < 0) return;
   p2Joined = true;
-  const p2 = makeShip(1);
+  const p2 = makeShip(id);
   p2.isLocal = true;
   p2.controlBinding = 1;
   p2.name = 'Player 2';
