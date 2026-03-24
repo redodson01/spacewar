@@ -58,6 +58,8 @@ export default [
         process: 'readonly',
         console: 'readonly',
         URL: 'readonly',
+        setInterval: 'readonly',
+        Date: 'readonly',
       },
     },
     rules: {

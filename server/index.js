@@ -6,6 +6,8 @@ import { networkInterfaces } from 'os';
 import { createInterface } from 'readline';
 import { WebSocketServer } from 'ws';
 import { createServerLua, createShip as createLuaShip } from './lua.js';
+import { getAIActions } from '../src/ai.js';
+import { PROJECTILE_DEFAULTS } from '../src/projectiles.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -136,6 +138,101 @@ const serverLua = createServerLua(ships, {
 
 serverLua.exposeScreen(WORLD_WIDTH, WORLD_HEIGHT);
 
+// --- Server-side AI game loop ---
+const serverProjectiles = []; // projectiles for AI dodging awareness
+const INVULNERABLE_DURATION = 2.0;
+const SEND_INTERVAL = 50; // 20Hz
+const lastAISendTimes = new Map();
+
+setInterval(() => {
+  const dt = 1 / 30; // 30Hz tick
+
+  for (const ship of ships) {
+    if (!ship.isAI || aiIds.get(ship.id) !== 'server') continue;
+
+    // Respawn logic
+    if (ship.state.destroyed) {
+      ship.state.respawnTimer -= dt;
+      if (ship.state.respawnTimer <= 0) {
+        const spawn = SPAWN_POSITIONS[ship.id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
+        Object.assign(ship.state, {
+          x: spawn.x, y: spawn.y, angle: spawn.angle,
+          vx: 0, vy: 0, destroyed: false, respawnTimer: 0,
+          invulnerableTimer: INVULNERABLE_DURATION, fireCooldownTimer: 0, thrusting: false,
+        });
+        broadcastAll({ type: 'respawn', id: ship.id, x: ship.state.x, y: ship.state.y });
+      }
+      continue;
+    }
+
+    // Invulnerability
+    if (ship.state.invulnerableTimer > 0) {
+      ship.state.invulnerableTimer = Math.max(0, ship.state.invulnerableTimer - dt);
+    }
+
+    // AI decision
+    const actions = getAIActions(ship, ships, serverProjectiles, WORLD_WIDTH, WORLD_HEIGHT);
+    const s = ship.state;
+    const c = ship.config;
+
+    s.thrusting = !!actions.thrust;
+    if (actions.left) s.angle -= c.turnSpeed;
+    if (actions.right) s.angle += c.turnSpeed;
+    if (actions.thrust) {
+      s.vx += Math.cos(s.angle) * c.thrust;
+      s.vy += Math.sin(s.angle) * c.thrust;
+    }
+    s.vx *= c.friction;
+    s.vy *= c.friction;
+    s.x += s.vx;
+    s.y += s.vy;
+    if (s.x < 0) s.x = WORLD_WIDTH;
+    if (s.x > WORLD_WIDTH) s.x = 0;
+    if (s.y < 0) s.y = WORLD_HEIGHT;
+    if (s.y > WORLD_HEIGHT) s.y = 0;
+
+    // Fire
+    s.fireCooldownTimer = Math.max(0, s.fireCooldownTimer - dt);
+    if (actions.fire && s.fireCooldownTimer <= 0) {
+      s.fireCooldownTimer = c.fireCooldown;
+      broadcastAll({
+        type: 'fire', id: ship.id,
+        x: s.x, y: s.y, angle: s.angle, vx: s.vx, vy: s.vy,
+      });
+      // Also add to server projectiles for AI dodging
+      serverProjectiles.push({
+        x: s.x + Math.cos(s.angle) * c.radius,
+        y: s.y + Math.sin(s.angle) * c.radius,
+        vx: s.vx + Math.cos(s.angle) * PROJECTILE_DEFAULTS.speed,
+        vy: s.vy + Math.sin(s.angle) * PROJECTILE_DEFAULTS.speed,
+        age: 0, ownerId: ship.id,
+      });
+    }
+
+    // Send state at 20Hz
+    const now = Date.now();
+    const lastTime = lastAISendTimes.get(ship.id) || 0;
+    if (now - lastTime >= SEND_INTERVAL) {
+      lastAISendTimes.set(ship.id, now);
+      broadcastAll({
+        type: 'state', id: ship.id,
+        x: s.x, y: s.y, angle: s.angle,
+        vx: s.vx, vy: s.vy,
+        thrusting: s.thrusting, destroyed: s.destroyed,
+      });
+    }
+  }
+
+  // Update server projectiles (for AI dodging awareness)
+  for (let i = serverProjectiles.length - 1; i >= 0; i--) {
+    const p = serverProjectiles[i];
+    p.x += p.vx; p.y += p.vy; p.age += dt;
+    if (p.age > 4 || p.x < 0 || p.x > WORLD_WIDTH || p.y < 0 || p.y > WORLD_HEIGHT) {
+      serverProjectiles.splice(i, 1);
+    }
+  }
+}, 1000 / 30); // 30Hz
+
 // --- HTTP server ---
 const httpServer = createServer(async (req, res) => {
   let filePath = req.url === '/' ? '/index.html' : req.url;
@@ -214,6 +311,20 @@ wss.on('connection', (ws, req) => {
           s.state.x = msg.x; s.state.y = msg.y; s.state.angle = msg.angle;
           s.state.vx = msg.vx; s.state.vy = msg.vy;
           s.state.thrusting = msg.thrusting; s.state.destroyed = msg.destroyed;
+        }
+      }
+
+      // Track client projectiles for server AI dodging
+      if (msg.type === 'fire') {
+        const s = ships.find(s => s.id === msg.id);
+        if (s) {
+          serverProjectiles.push({
+            x: msg.x + Math.cos(msg.angle) * (s.config?.radius || 20),
+            y: msg.y + Math.sin(msg.angle) * (s.config?.radius || 20),
+            vx: msg.vx + Math.cos(msg.angle) * PROJECTILE_DEFAULTS.speed,
+            vy: msg.vy + Math.sin(msg.angle) * PROJECTILE_DEFAULTS.speed,
+            age: 0, ownerId: msg.id,
+          });
         }
       }
 
