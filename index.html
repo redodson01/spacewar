@@ -149,18 +149,13 @@
       <option value="orbit">Auto-orbit</option>
     </select>
   </div>
-  <textarea id="script-input" spellcheck="false">-- Modify the ship directly:
---   ship.color, ship.thrust, ship.turnSpeed,
---   ship.friction, ship.radius
+  <textarea id="script-input" spellcheck="false">-- Type help() in the REPL below for the full API reference.
 --
--- Read ship state:
---   ship.x, ship.y, ship.angle, ship.vx, ship.vy
---
--- Override position/angle in onUpdate:
---   ship.x, ship.y, ship.angle, ship.vx, ship.vy
---
--- Screen dimensions:
---   screen.width, screen.height
+-- Quick start:
+--   ship.color = "#ff0"          -- change color
+--   ship.thrust = 0.4            -- faster acceleration
+--   ship.fireCooldown = 0.05     -- rapid fire
+--   shoot()                      -- fire a projectile
 --
 -- Per-frame callback:
 --   function onUpdate(dt) ... end

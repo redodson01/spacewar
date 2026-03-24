@@ -221,5 +221,49 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   });
   lua.lua_setglobal(L, LUA_SHOOT);
 
+  const LUA_HELP = toLua("help");
+  lua.lua_pushcfunction(L, function () {
+    appendOutput([
+      '=== Spacewar Lua API ===',
+      '',
+      'GLOBALS',
+      '  ship / ship1      Player 1\'s ship (alias)',
+      '  ship2 - ship4     Other players\' ships (nil if absent)',
+      '  projectiles       Array of active projectiles',
+      '  screen.width      World width (1920)',
+      '  screen.height     World height (1080)',
+      '',
+      'SHIP CONFIG (persists across respawn)',
+      '  ship.color             CSS color string',
+      '  ship.radius            Ship size (default 20)',
+      '  ship.thrust            Acceleration per frame (default 0.15)',
+      '  ship.turnSpeed         Rotation per frame (default 0.05)',
+      '  ship.friction          Velocity decay 0-1 (default 0.995)',
+      '  ship.fireCooldown      Seconds between shots (default 0.25)',
+      '  ship.showName          Show name above ship (default false)',
+      '  ship.controlScheme     0=WASD, 1=arrows (default 0)',
+      '  ship.explosionParticles  Particle count (default 25)',
+      '',
+      'SHIP STATE (resets on respawn)',
+      '  ship.x, ship.y         Position',
+      '  ship.angle              Facing angle in radians',
+      '  ship.vx, ship.vy       Velocity',
+      '  ship.destroyed          Whether ship is dead',
+      '  ship.respawnTimer       Seconds until respawn',
+      '  ship.invulnerableTimer  Seconds of invulnerability',
+      '  ship.thrusting          Whether thrust is active',
+      '',
+      'FUNCTIONS',
+      '  shoot()           Fire a projectile from your ship',
+      '  print(...)        Output to this console',
+      '  help()            Show this reference',
+      '',
+      'CALLBACKS',
+      '  function onUpdate(dt)   Called every frame (dt in seconds)',
+    ].join('\n'));
+    return 0;
+  });
+  lua.lua_setglobal(L, LUA_HELP);
+
   return ctx;
 }
