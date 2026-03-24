@@ -123,12 +123,11 @@ server.listen(PORT, () => {
 
 async function startTunnel() {
   try {
-    const lt = await import('localtunnel');
-    const tunnel = await lt.default({ port: PORT });
+    const { startTunnel: start } = await import('untun');
+    const tunnel = await start({ port: PORT });
     console.log(`  Public: ${tunnel.url}`);
-    tunnel.on('close', () => console.log('Tunnel closed.'));
   } catch (e) {
     console.error('Failed to start tunnel:', e.message);
-    console.error('Install localtunnel: npm install --save-dev localtunnel');
+    console.error('Install untun: npm install --save-dev untun');
   }
 }
