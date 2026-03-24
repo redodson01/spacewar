@@ -320,6 +320,14 @@ net.connect().then((welcome) => {
     return;
   }
 
+  if (welcome.error) {
+    ctx.fillStyle = '#839496';
+    ctx.font = '24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(welcome.error, canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
   // Resolve player name: check per-slot storage, then prompt
   const savedSlotName = loadName(welcome.id);
   let playerName;

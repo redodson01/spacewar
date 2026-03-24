@@ -88,9 +88,12 @@ export function createNetClient() {
         resolve(null);
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         connected = false;
         clearTimeout(timeout);
+        if (event.code === 4000) {
+          resolve({ error: event.reason || 'Game is full' });
+        }
       };
     });
   }
