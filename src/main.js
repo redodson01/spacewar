@@ -518,8 +518,9 @@ function gameLoop(time) {
 
   updateProjectiles(projectiles, dt, WORLD_WIDTH, WORLD_HEIGHT);
 
-  // Collision: projectiles vs all ships
+  // Collision: projectiles vs ships (network: local ships only; local mode: all)
   for (const ship of ships) {
+    if (networkMode && !ship.isLocal) continue; // owner handles collision
     if (!ship.state.destroyed && ship.state.invulnerableTimer <= 0) {
       const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
@@ -528,7 +529,7 @@ function gameLoop(time) {
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
         if (networkMode) {
-          if (ship.isLocal) net.sendDeath(ship, killerId, 'projectile');
+          net.sendDeath(ship, killerId, 'projectile');
         } else {
           leaderboard.recordKill(killerId);
         }
@@ -536,10 +537,11 @@ function gameLoop(time) {
     }
   }
 
-  // Ship-ship collision: all pairs
+  // Ship-ship collision (network: only if local ship involved; local mode: all pairs)
   for (let i = 0; i < ships.length; i++) {
     for (let j = i + 1; j < ships.length; j++) {
       const si = ships[i], sj = ships[j];
+      if (networkMode && !si.isLocal && !sj.isLocal) continue; // owner handles
       if (si.state.invulnerableTimer <= 0 && sj.state.invulnerableTimer <= 0 && checkShipShipCollision(si, sj)) {
         spawnExplosion(explosions, si.state.x, si.state.y, si.config.color, si.config.explosionParticles);
         spawnExplosion(explosions, sj.state.x, sj.state.y, sj.config.color, sj.config.explosionParticles);
