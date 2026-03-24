@@ -424,20 +424,24 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'death') {
-        if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
-          scores.set(msg.killerId, scores.get(msg.killerId) + 1);
-        }
-        if (msg.cause === 'collision' && msg.id != null && scores.has(msg.id)) {
-          scores.set(msg.id, scores.get(msg.id) - 1);
-        }
-        broadcastScores();
-        const victim = ships.find(s => s.id === msg.id);
-        const killer = msg.killerId != null ? ships.find(s => s.id === msg.killerId) : null;
-        if (victim) {
-          if (killer) {
-            console.log(`[kill] ${killer.name || 'Player ' + (killer.id + 1)} killed ${victim.name || 'Player ' + (victim.id + 1)}`);
-          } else {
-            console.log(`[collision] ${victim.name || 'Player ' + (victim.id + 1)} destroyed`);
+        // Skip scoring/logging for server-owned AI — handled by server game loop
+        const isServerAI = aiIds.get(msg.id) === 'server';
+        if (!isServerAI) {
+          if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
+            scores.set(msg.killerId, scores.get(msg.killerId) + 1);
+          }
+          if (msg.cause === 'collision' && msg.id != null && scores.has(msg.id)) {
+            scores.set(msg.id, scores.get(msg.id) - 1);
+          }
+          broadcastScores();
+          const victim = ships.find(s => s.id === msg.id);
+          const killer = msg.killerId != null ? ships.find(s => s.id === msg.killerId) : null;
+          if (victim) {
+            if (killer) {
+              console.log(`[kill] ${killer.name || 'Player ' + (killer.id + 1)} killed ${victim.name || 'Player ' + (victim.id + 1)}`);
+            } else {
+              console.log(`[collision] ${victim.name || 'Player ' + (victim.id + 1)} destroyed`);
+            }
           }
         }
       }
