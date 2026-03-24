@@ -74,15 +74,20 @@ export function updateShip(ship, actions, canvasWidth, canvasHeight) {
 
 export function drawShip(ctx, ship) {
   if (ship.destroyed) return;
-  // Blink while invulnerable (8Hz flash)
-  if (ship.invulnerableTimer > 0 && Math.floor(ship.invulnerableTimer * 8) % 2 === 0) return;
   const { x, y, angle, radius, color } = ship;
   const nose  = { x: x + Math.cos(angle) * radius,       y: y + Math.sin(angle) * radius };
   const left  = { x: x + Math.cos(angle + 2.4) * radius, y: y + Math.sin(angle + 2.4) * radius };
   const right = { x: x + Math.cos(angle - 2.4) * radius, y: y + Math.sin(angle - 2.4) * radius };
 
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 12;
+  // White glow pulse while invulnerable
+  if (ship.invulnerableTimer > 0) {
+    const pulse = 0.5 + 0.5 * Math.sin(ship.invulnerableTimer * Math.PI * 4);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12 + pulse * 12;
+  } else {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+  }
 
   ctx.beginPath();
   ctx.moveTo(nose.x, nose.y);
