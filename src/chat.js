@@ -43,12 +43,15 @@ export function createChat() {
       ctx.shadowBlur = 4;
 
       if (msg.name) {
-        // Name in player color, message in base0
+        // Name in player color with matching glow
         ctx.fillStyle = msg.color;
+        ctx.shadowColor = msg.color;
         const nameStr = `${msg.name}: `;
         ctx.fillText(nameStr, 15, y);
         const nameWidth = ctx.measureText(nameStr).width;
+        // Message text in base0 with matching glow
         ctx.fillStyle = '#839496';
+        ctx.shadowColor = '#839496';
         ctx.fillText(msg.text, 15 + nameWidth, y);
       } else {
         // No name prefix — just the message in the color

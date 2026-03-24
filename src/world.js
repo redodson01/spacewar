@@ -1,21 +1,39 @@
 export let WORLD_WIDTH = 1920;
 export let WORLD_HEIGHT = 1080;
 
+export const MAX_PLAYERS = 8;
+
+export const PLAYER_COLORS = [
+  '#dc322f', // red
+  '#859900', // green
+  '#268bd2', // blue
+  '#b58900', // yellow
+  '#2aa198', // cyan
+  '#d33682', // magenta
+  '#cb4b16', // orange
+  '#6c71c4', // violet
+];
+
+function computeSpawnPositions(w, h) {
+  const positions = [];
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    const angle = (i / MAX_PLAYERS) * Math.PI * 2 - Math.PI / 2; // start from top
+    positions.push({
+      x: w / 2 + Math.cos(angle) * w * 0.35,
+      y: h / 2 + Math.sin(angle) * h * 0.35,
+      angle: angle + Math.PI, // face center
+    });
+  }
+  return positions;
+}
+
+export const SPAWN_POSITIONS = computeSpawnPositions(WORLD_WIDTH, WORLD_HEIGHT);
+
 export function setWorldSize(w, h) {
   WORLD_WIDTH = w;
   WORLD_HEIGHT = h;
-  // Recalculate spawn positions
-  SPAWN_POSITIONS[0] = { x: w / 4,     y: h / 4,     angle: Math.PI / 4 };
-  SPAWN_POSITIONS[1] = { x: 3 * w / 4, y: 3 * h / 4, angle: -3 * Math.PI / 4 };
-  SPAWN_POSITIONS[2] = { x: 3 * w / 4, y: h / 4,     angle: 3 * Math.PI / 4 };
-  SPAWN_POSITIONS[3] = { x: w / 4,     y: 3 * h / 4, angle: -Math.PI / 4 };
+  const newPositions = computeSpawnPositions(w, h);
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    SPAWN_POSITIONS[i] = newPositions[i];
+  }
 }
-
-export const PLAYER_COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900'];
-
-export const SPAWN_POSITIONS = [
-  { x: WORLD_WIDTH / 4,     y: WORLD_HEIGHT / 4,     angle: Math.PI / 4 },       // top-left, faces SE
-  { x: 3 * WORLD_WIDTH / 4, y: 3 * WORLD_HEIGHT / 4, angle: -3 * Math.PI / 4 },  // bottom-right, faces NW
-  { x: 3 * WORLD_WIDTH / 4, y: WORLD_HEIGHT / 4,     angle: 3 * Math.PI / 4 },   // top-right, faces SW
-  { x: WORLD_WIDTH / 4,     y: 3 * WORLD_HEIGHT / 4, angle: -Math.PI / 4 },      // bottom-left, faces NE
-];
