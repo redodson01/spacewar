@@ -64,7 +64,6 @@ Type `help()` in the REPL for the full reference. Summary:
 | `ship.radius` | Ship size (default 20) |
 | `ship.fireCooldown` | Seconds between shots (default 0.25) |
 | `ship.showName` | Show name above ship (default false) |
-| `ship.controlScheme` | 0=WASD, 1=arrows (default 0) |
 | `ship.explosionParticles` | Particle count on death (default 25) |
 | `ship.x`, `ship.y` | Position (read/write) |
 | `ship.angle` | Facing angle in radians |
@@ -73,6 +72,7 @@ Type `help()` in the REPL for the full reference. Summary:
 | `screen.width`, `screen.height` | World dimensions (1920×1080) |
 | `projectiles` | Array of active projectiles |
 | `shoot()` | Fire a projectile from your ship |
+| `setName(n, name)` | Rename player n (e.g. `setName(1, "Alice")`) |
 | `print(...)` | Output to the editor console |
 | `help()` | Print full API reference |
 | `function onUpdate(dt) ... end` | Per-frame callback (dt in seconds) |
@@ -111,6 +111,7 @@ src/
   lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
   leaderboard.js       Score tracking and display
+  chat.js              In-game chat messages and rendering
   net.js               WebSocket client and interpolation
   storage.js           localStorage persistence layer
 server/
@@ -122,6 +123,7 @@ tests/
   collision.test.js        Collision detection unit tests
   world.test.js            World constants unit tests
   leaderboard.test.js      Leaderboard scoring unit tests
+  chat.test.js             Chat message unit tests
   interpolation.test.js    Network interpolation unit tests
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
@@ -136,6 +138,7 @@ tests/
 npm run dev          # Local dev server (2-player local mode)
 npm run serve        # Multiplayer server (LAN)
 npm run serve:tunnel # Multiplayer server + public URL for remote play
+npm run serve -- --width 800 --height 600  # Custom world size
 npm run lint         # Run ESLint
 npm test             # Run tests (Vitest)
 npm run test:watch   # Run tests in watch mode

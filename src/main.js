@@ -1,14 +1,16 @@
 import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn, tickInvulnerable } from './ship.js';
-import { createInputManager, PLAYER_BINDINGS, getActions } from './input.js';
+import { createInputManager, PLAYER_BINDINGS, getActions, getNetworkActions } from './input.js';
 import { createStars, drawStars } from './stars.js';
 import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
 import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } from './explosions.js';
 import { checkShipProjectileCollision, checkShipShipCollision } from './collision.js';
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
-import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS } from './world.js';
+import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, setWorldSize } from './world.js';
 import { createLeaderboard } from './leaderboard.js';
+import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
+import { loadName, saveName, loadChatHistory, saveChatHistory } from './storage.js';
 
 // Canvas
 const canvas = document.getElementById('game');
@@ -19,12 +21,13 @@ canvas.height = window.innerHeight;
 
 // Game objects
 const ships = [];
-const stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
+let stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
-const input = createInputManager(['script-input', 'repl-input']);
+const input = createInputManager(['script-input', 'repl-input', 'chat-input']);
 input.attach(window);
 const leaderboard = createLeaderboard();
+const chat = createChat();
 
 // Networking
 const net = createNetClient();
@@ -50,14 +53,20 @@ function initLocalMode() {
   }
 }
 
-initLocalMode();
+function startGame() {
+  if (!networkMode) {
+    initLocalMode();
+    showHelpInChat();
+  }
+  requestAnimationFrame(gameLoop);
+}
 
 // Editor DOM elements
 const elements = {
   editor: document.getElementById('editor'),
   scriptArea: document.getElementById('script-input'),
   outputDiv: document.getElementById('output'),
-  hintDiv: document.getElementById('hint'),
+  hintDiv: null,
   replInput: document.getElementById('repl-input'),
   exampleSelect: document.getElementById('example-select'),
   runBtn: document.getElementById('run-btn'),
@@ -179,6 +188,125 @@ net.onLuaUpdate((updates) => {
   }
 });
 
+net.onChat((name, color, text) => {
+  chat.addMessage(name, color, text);
+});
+
+function showHelpInChat() {
+  const hint = '#586e75'; // Solarized base01
+  if (networkMode) {
+    chat.addMessage('', hint, 'WASD / Arrows + Space to shoot | Enter to chat | /help for help');
+    if (net.localId === 0) {
+      chat.addMessage('', hint, 'Host: ` for editor | /command to run Lua');
+    }
+  } else {
+    chat.addMessage('', hint, 'P1: WASD + Space | P2: Arrows + / | ` for editor');
+  }
+}
+
+// Chat input handling
+const chatBar = document.getElementById('chat-bar');
+const chatInput = document.getElementById('chat-input');
+let chatOpen = false;
+const chatHistory = loadChatHistory();
+let chatHistoryIdx = chatHistory.length;
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter' && !chatOpen && networkMode && e.target === document.body) {
+    e.preventDefault();
+    chatOpen = true;
+    chatBar.classList.add('open');
+    chatInput.focus();
+    input.clear();
+  }
+});
+
+chatInput.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter') {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (text) {
+      if (chatHistory[chatHistory.length - 1] !== text) {
+        chatHistory.push(text);
+        saveChatHistory(chatHistory);
+      }
+      chatHistoryIdx = chatHistory.length;
+      if (text === '/help') {
+        showHelpInChat();
+      } else if (text.startsWith('/')) {
+        if (!networkMode || net.localId === 0) {
+          // Run as Lua command — output goes to editor, chat, and network
+          const origAppendOutput = appendOutput;
+          const chatOutputs = [];
+          appendOutput = (t, isError) => {
+            origAppendOutput(t, isError);
+            if (!t.startsWith('> ')) chatOutputs.push(t);
+          };
+          luaCtx.runLuaREPL(text.slice(1));
+          appendOutput = origAppendOutput;
+          for (const line of chatOutputs) {
+            chat.addMessage('', '#2aa198', line);
+            net.sendChat('', '#2aa198', line);
+          }
+        } else {
+          chat.addMessage('', '#dc322f', 'Only the host can run /commands.');
+        }
+      } else {
+        const localShip = ships.find(s => s.isLocal);
+        const name = localShip ? localShip.name : 'Player';
+        const color = localShip ? localShip.config.color : '#839496';
+        chat.addMessage(name, color, text);
+        net.sendChat(name, color, text);
+      }
+    }
+    chatInput.value = '';
+    chatOpen = false;
+    chatBar.classList.remove('open');
+    chatInput.blur();
+  } else if (e.code === 'Escape') {
+    e.preventDefault();
+    chatInput.value = '';
+    chatOpen = false;
+    chatBar.classList.remove('open');
+    chatInput.blur();
+  } else if (e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (chatHistoryIdx > 0) {
+      chatHistoryIdx--;
+      chatInput.value = chatHistory[chatHistoryIdx];
+    }
+  } else if (e.code === 'ArrowDown') {
+    e.preventDefault();
+    if (chatHistoryIdx < chatHistory.length - 1) {
+      chatHistoryIdx++;
+      chatInput.value = chatHistory[chatHistoryIdx];
+    } else {
+      chatHistoryIdx = chatHistory.length;
+      chatInput.value = '';
+    }
+  }
+  e.stopPropagation();
+});
+chatInput.addEventListener('keyup', (e) => e.stopPropagation());
+
+net.onNameChange((playerId, newName) => {
+  const ship = ships.find(s => s.id === playerId);
+  if (ship) {
+    ship.name = newName;
+    leaderboard.updateName(ship.id, newName);
+  }
+});
+
+luaCtx.setOnNameChange((playerId, newName) => {
+  leaderboard.updateName(playerId, newName);
+  const ship = ships.find(s => s.id === playerId);
+  if (ship && ship.isLocal) {
+    saveName(newName, playerId);
+    saveName(newName);
+  }
+  if (networkMode) net.sendNameChange(playerId, newName);
+});
+
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
 luaCtx.setOnShipUpdate((updates) => {
   for (const u of updates) leaderboard.updateColor(u.id, u.color);
@@ -186,11 +314,40 @@ luaCtx.setOnShipUpdate((updates) => {
 });
 
 // Try to connect — if it works, switch to network mode
-const playerName = prompt('Enter your name:');
-net.connect(playerName || 'Player').then((welcome) => {
-  if (!welcome) return;
+net.connect().then((welcome) => {
+  if (!welcome) {
+    startGame();
+    return;
+  }
+
+  if (welcome.error) {
+    ctx.fillStyle = '#839496';
+    ctx.font = '24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(welcome.error, canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  // Resolve player name: check per-slot storage, then prompt
+  const savedSlotName = loadName(welcome.id);
+  let playerName;
+  if (savedSlotName) {
+    playerName = savedSlotName;
+  } else {
+    const savedGenericName = loadName();
+    playerName = prompt('Enter your name:', savedGenericName || '');
+  }
+  playerName = playerName || 'Player';
+  saveName(playerName, welcome.id);
+  saveName(playerName); // also save as generic fallback
 
   networkMode = true;
+
+  // Apply server world size
+  if (welcome.worldWidth && welcome.worldHeight) {
+    setWorldSize(welcome.worldWidth, welcome.worldHeight);
+    stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
+  }
 
   // Rebuild ships and leaderboard for network mode
   ships.length = 0;
@@ -200,8 +357,13 @@ net.connect(playerName || 'Player').then((welcome) => {
 
   const localShip = makeShip(welcome.id);
   localShip.isLocal = true;
-  localShip.name = welcome.name;
+  localShip.name = playerName;
   ships.push(localShip);
+
+  // Send name update if different from server default
+  if (playerName !== welcome.name) {
+    net.sendNameChange(welcome.id, playerName);
+  }
 
   for (const p of welcome.players) {
     const ship = makeShip(p.id);
@@ -210,14 +372,26 @@ net.connect(playerName || 'Player').then((welcome) => {
     ships.push(ship);
   }
 
-  leaderboard.addPlayer(welcome.id, welcome.name, PLAYER_COLORS[welcome.id]);
+  leaderboard.addPlayer(welcome.id, playerName, PLAYER_COLORS[welcome.id]);
   for (const p of welcome.players) {
     leaderboard.addPlayer(p.id, p.name, PLAYER_COLORS[p.id]);
   }
   if (welcome.scores) leaderboard.setScores(welcome.scores);
 
+  // Apply stored Lua config overrides from server
+  if (welcome.luaConfig) {
+    for (const u of welcome.luaConfig) {
+      const ship = ships.find(s => s.id === u.id);
+      if (!ship) continue;
+      Object.assign(ship.config, u);
+      delete ship.config.id;
+      leaderboard.updateColor(u.id, u.color);
+    }
+  }
+
   luaCtx.reset();
-  elements.hintDiv.textContent = 'WASD + Space | ` for editor';
+  showHelpInChat();
+  startGame();
 });
 
 // Rendering transform: map world coordinates to canvas
@@ -253,16 +427,16 @@ function gameLoop(time) {
     const ship = ships[i];
 
     if (ship.isLocal) {
-      const bindings = PLAYER_BINDINGS[ship.config.controlScheme || (networkMode ? 0 : i)];
-      const actions = getActions(input.keys, bindings);
+      const actions = networkMode
+        ? getNetworkActions(input.keys)
+        : getActions(input.keys, PLAYER_BINDINGS[i]);
 
       const respawned = tickRespawn(ship, dt);
       if (networkMode && respawned) net.sendRespawn(ship);
 
       updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
       tickFireCooldown(ship, dt);
-      const fire = actions.fire || (networkMode && input.keys['Space']);
-      if (fire && !ship.state.destroyed) {
+      if (actions.fire && !ship.state.destroyed) {
         if (fireProjectile(projectiles, ship)) {
           if (networkMode) net.sendFire(ship);
         }
@@ -286,7 +460,7 @@ function gameLoop(time) {
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
         if (networkMode) {
-          net.sendDeath(ship, killerId, 'projectile');
+          if (ship.isLocal) net.sendDeath(ship, killerId, 'projectile');
         } else {
           leaderboard.recordKill(killerId);
         }
@@ -304,8 +478,8 @@ function gameLoop(time) {
         destroyShip(si);
         destroyShip(sj);
         if (networkMode) {
-          net.sendDeath(si, null, 'collision');
-          net.sendDeath(sj, null, 'collision');
+          if (si.isLocal) net.sendDeath(si, null, 'collision');
+          if (sj.isLocal) net.sendDeath(sj, null, 'collision');
         } else {
           leaderboard.recordCollision(si.id, sj.id);
         }
@@ -321,12 +495,12 @@ function gameLoop(time) {
     drawShip(ctx, ship);
   }
 
-  // Leaderboard in world space
+  // Chat and leaderboard in world space
+  chat.update(dt);
+  chat.draw(ctx, WORLD_WIDTH, WORLD_HEIGHT);
   leaderboard.draw(ctx);
 
   ctx.restore();
 
   requestAnimationFrame(gameLoop);
 }
-
-requestAnimationFrame(gameLoop);
