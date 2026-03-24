@@ -161,7 +161,7 @@ net.onState((id, state) => {
 
 net.onFire((id, data) => {
   const ship = ships.find(s => s.id === id);
-  if (!ship) return;
+  if (!ship || ship.state.destroyed) return;
   projectiles.push({
     x: data.x + Math.cos(data.angle) * ship.config.radius,
     y: data.y + Math.sin(data.angle) * ship.config.radius,
