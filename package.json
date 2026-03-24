@@ -12,12 +12,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "fengari": "^0.1.4",
+    "fengari-interop": "^0.1.3",
     "ws": "^8.0.0"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
-    "fengari": "^0.1.4",
-    "fengari-interop": "^0.1.3",
     "jsdom": "^26.0.0",
     "untun": "^0.1.0",
     "serve": "^14.0.0",

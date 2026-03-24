@@ -114,7 +114,7 @@ src/
   projectiles.js       Projectile spawning, movement, and rendering
   explosions.js        Particle explosion effects
   collision.js         Collision detection
-  ai.js                AI decision logic for computer players
+  ai.js                AI decision logic for computer players (shared by client + server)
   world.js             World dimensions, player colors, spawn positions
   lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
@@ -123,7 +123,8 @@ src/
   net.js               WebSocket client and interpolation
   storage.js           localStorage persistence layer
 server/
-  index.js             Multiplayer WebSocket server
+  index.js             Multiplayer WebSocket server with Lua REPL
+  lua.js               Server-side Fengari Lua context
 tests/
   ship.test.js             Ship physics unit tests
   projectiles.test.js      Projectile system unit tests
@@ -137,13 +138,18 @@ tests/
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
   stars.test.js            Starfield unit tests
+  server-lua.test.js       Server Lua context unit tests
   storage.test.js          Storage persistence unit tests
 ```
+
+### Server Console
+
+`npm run serve` includes a Lua REPL in the terminal. Type Lua commands to set up scenarios, spawn AI, modify ships, and monitor the game. Type `help()` for the full API. Game events (joins, kills, chat) are logged to stdout.
 
 ### Scripts
 
 ```bash
-npm run dev          # Local dev server (2-player local mode)
+npm run dev          # Local dev server (single-player local mode)
 npm run serve        # Multiplayer server (LAN)
 npm run serve:tunnel # Multiplayer server + public URL for remote play
 npm run serve -- --width 800 --height 600  # Custom world size
