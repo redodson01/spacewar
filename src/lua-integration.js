@@ -61,6 +61,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   lua.lua_pop(L, 1);
 
   function exposeShips() {
+    if (ships.length === 0) return;
     // ship = local player (always ships[0] in the array)
     interop.push(L, createShipProxy(ships[0]));
     lua.lua_setglobal(L, LUA_SHIP);
