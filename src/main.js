@@ -205,11 +205,26 @@ chatInput.addEventListener('keydown', (e) => {
     e.preventDefault();
     const text = chatInput.value.trim();
     if (text) {
-      const localShip = ships.find(s => s.isLocal);
-      const name = localShip ? localShip.name : 'Player';
-      const color = localShip ? localShip.config.color : '#839496';
-      chat.addMessage(name, color, text);
-      net.sendChat(name, color, text);
+      if (text.startsWith('/')) {
+        // Run as Lua command — output goes to both editor and chat
+        const origAppendOutput = appendOutput;
+        const chatOutputs = [];
+        appendOutput = (t, isError) => {
+          origAppendOutput(t, isError);
+          chatOutputs.push(t);
+        };
+        luaCtx.runLuaREPL(text.slice(1));
+        appendOutput = origAppendOutput;
+        for (const line of chatOutputs) {
+          chat.addMessage('Lua', '#2aa198', line);
+        }
+      } else {
+        const localShip = ships.find(s => s.isLocal);
+        const name = localShip ? localShip.name : 'Player';
+        const color = localShip ? localShip.config.color : '#839496';
+        chat.addMessage(name, color, text);
+        net.sendChat(name, color, text);
+      }
     }
     chatInput.value = '';
     chatOpen = false;
