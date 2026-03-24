@@ -175,6 +175,15 @@ net.onFire((id, data) => {
   });
 });
 
+net.onStateOverride((targetId, msg) => {
+  const ship = ships.find(s => s.id === targetId);
+  if (!ship) return;
+  const stateProps = ['x', 'y', 'angle', 'vx', 'vy', 'thrusting', 'destroyed'];
+  for (const prop of stateProps) {
+    if (msg[prop] !== undefined) ship.state[prop] = msg[prop];
+  }
+});
+
 net.onScores((scoreList) => {
   leaderboard.setScores(scoreList);
 });

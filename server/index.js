@@ -3,7 +3,9 @@ import { readFile } from 'fs/promises';
 import { join, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
+import { createInterface } from 'readline';
 import { WebSocketServer } from 'ws';
+import { createServerLua, createShip as createLuaShip } from './lua.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -30,17 +32,51 @@ const MAX_PLAYERS = 8;
 
 // Player management
 const players = new Map(); // ws -> { id, color, name }
-const aiIds = new Map(); // aiId -> ownerWs (tracks which connection owns which AI)
+const aiIds = new Map(); // aiId -> ownerWs ('server' for server-spawned AI)
+
+// Spawn positions (same formula as client world.js)
+function computeSpawnPositions(w, h) {
+  const positions = [];
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    const angle = (i / MAX_PLAYERS) * Math.PI * 2 - Math.PI / 2;
+    positions.push({
+      x: w / 2 + Math.cos(angle) * w * 0.35,
+      y: h / 2 + Math.sin(angle) * h * 0.35,
+      angle: angle + Math.PI,
+    });
+  }
+  return positions;
+}
+const SPAWN_POSITIONS = computeSpawnPositions(WORLD_WIDTH, WORLD_HEIGHT);
+
+// Server-side ship tracking (for Lua context)
+const ships = [];
 
 function nextId() {
   for (let i = 0; i < MAX_PLAYERS; i++) {
-    if (![...players.values()].some(p => p.id === i) && !aiIds.has(i)) return i;
+    if (![...players.values()].some(p => p.id === i) && !aiIds.has(i) && !ships.find(s => s.id === i)) return i;
   }
   return -1;
 }
 
+function findOrCreateShip(id) {
+  let ship = ships.find(s => s.id === id);
+  if (!ship) {
+    const spawn = SPAWN_POSITIONS[id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
+    ship = createLuaShip(id, spawn.x, spawn.y, COLORS[id]);
+    ship.state.angle = spawn.angle;
+    ships.push(ship);
+  }
+  return ship;
+}
+
+function removeShip(id) {
+  const idx = ships.findIndex(s => s.id === id);
+  if (idx >= 0) ships.splice(idx, 1);
+}
+
 const scores = new Map(); // id -> score
-let lastLuaUpdate = null; // latest luaUpdate payload for new players
+let lastLuaUpdate = null;
 
 function broadcast(sender, message) {
   const data = typeof message === 'string' ? message : JSON.stringify(message);
@@ -62,11 +98,48 @@ function broadcastScores() {
   broadcastAll({ type: 'scores', scores: [...scores.entries()].map(([id, score]) => ({ id, score })) });
 }
 
-// HTTP server — serve static files
-const server = createServer(async (req, res) => {
+// --- Server Lua context ---
+const serverLua = createServerLua(ships, {
+  onStateWrite(id, prop, value) {
+    // Broadcast state override to all clients
+    broadcastAll({ type: 'stateOverride', targetId: id, [prop]: value });
+  },
+  onAddAI() {
+    let id = -1;
+    for (let i = 0; i < MAX_PLAYERS; i++) {
+      if (![...players.values()].some(p => p.id === i) && !aiIds.has(i) && !ships.find(s => s.id === i)) {
+        id = i; break;
+      }
+    }
+    if (id < 0) return -1;
+    const spawn = SPAWN_POSITIONS[id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
+    const ship = createLuaShip(id, spawn.x, spawn.y, COLORS[id]);
+    ship.state.angle = spawn.angle;
+    ship.name = `Bot ${id + 1}`;
+    ship.isAI = true;
+    ships.push(ship);
+    aiIds.set(id, 'server');
+    scores.set(id, 0);
+    broadcastAll({ type: 'join', id, name: ship.name });
+    return id;
+  },
+  onRemoveAI(id) {
+    removeShip(id);
+    aiIds.delete(id);
+    scores.delete(id);
+    broadcastAll({ type: 'leave', id });
+  },
+  onNameChange(id, newName) {
+    broadcastAll({ type: 'nameChange', playerId: id, newName });
+  },
+});
+
+serverLua.exposeScreen(WORLD_WIDTH, WORLD_HEIGHT);
+
+// --- HTTP server ---
+const httpServer = createServer(async (req, res) => {
   let filePath = req.url === '/' ? '/index.html' : req.url;
 
-  // Security: prevent directory traversal
   if (filePath.includes('..')) {
     res.writeHead(403);
     res.end();
@@ -87,8 +160,8 @@ const server = createServer(async (req, res) => {
   }
 });
 
-// WebSocket server
-const wss = new WebSocketServer({ server });
+// --- WebSocket server ---
+const wss = new WebSocketServer({ server: httpServer });
 
 wss.on('connection', (ws, req) => {
   const id = nextId();
@@ -103,7 +176,13 @@ wss.on('connection', (ws, req) => {
   players.set(ws, { id, color, name });
   scores.set(id, 0);
 
-  // Send welcome to the new player
+  // Track ship on server
+  const ship = findOrCreateShip(id);
+  ship.name = name;
+
+  console.log(`[join] ${name} (player ${id + 1})`);
+
+  // Send welcome
   const existingPlayers = [...players.values()].filter(p => p.id !== id);
   ws.send(JSON.stringify({
     type: 'welcome',
@@ -111,7 +190,7 @@ wss.on('connection', (ws, req) => {
     name,
     players: [
       ...existingPlayers.map(p => ({ id: p.id, name: p.name })),
-      ...[...aiIds.keys()].map(aiId => ({ id: aiId, name: `Bot ${aiId + 1}`, isAI: true })),
+      ...[...aiIds.keys()].map(aiId => ({ id: aiId, name: ships.find(s => s.id === aiId)?.name || `Bot ${aiId + 1}`, isAI: true })),
     ],
     scores: [...scores.entries()].map(([sid, score]) => ({ id: sid, score })),
     worldWidth: WORLD_WIDTH,
@@ -119,35 +198,62 @@ wss.on('connection', (ws, req) => {
     luaConfig: lastLuaUpdate,
   }));
 
-  // Announce to others
   broadcast(ws, { type: 'join', id, name });
 
   ws.on('message', (raw) => {
     const str = raw.toString();
     broadcast(ws, str);
 
-    // Track scores from death events
     try {
       const msg = JSON.parse(str);
+
+      // Update server-side ship state from client state messages
+      if (msg.type === 'state') {
+        const s = ships.find(s => s.id === msg.id);
+        if (s) {
+          s.state.x = msg.x; s.state.y = msg.y; s.state.angle = msg.angle;
+          s.state.vx = msg.vx; s.state.vy = msg.vy;
+          s.state.thrusting = msg.thrusting; s.state.destroyed = msg.destroyed;
+        }
+      }
+
       if (msg.type === 'luaUpdate') {
         lastLuaUpdate = msg.updates;
+        // Sync config to server ships
+        for (const u of msg.updates) {
+          const s = ships.find(s => s.id === u.id);
+          if (s) {
+            Object.assign(s.config, u);
+            delete s.config.id;
+          }
+        }
       }
+
       if (msg.type === 'nameChange') {
         const player = players.get(ws);
         if (player && msg.playerId === player.id) {
           player.name = msg.newName;
         }
+        const s = ships.find(s => s.id === msg.playerId);
+        if (s) s.name = msg.newName;
       }
+
       if (msg.type === 'aiJoin') {
         aiIds.set(msg.aiId, ws);
         scores.set(msg.aiId, 0);
+        findOrCreateShip(msg.aiId).name = msg.name;
+        ships.find(s => s.id === msg.aiId).isAI = true;
         broadcast(ws, { type: 'join', id: msg.aiId, name: msg.name });
+        console.log(`[ai] ${msg.name} added by ${players.get(ws)?.name}`);
       }
+
       if (msg.type === 'aiLeave') {
         aiIds.delete(msg.aiId);
         scores.delete(msg.aiId);
+        removeShip(msg.aiId);
         broadcast(ws, { type: 'leave', id: msg.aiId });
       }
+
       if (msg.type === 'death') {
         if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
           scores.set(msg.killerId, scores.get(msg.killerId) + 1);
@@ -156,34 +262,56 @@ wss.on('connection', (ws, req) => {
           scores.set(msg.id, scores.get(msg.id) - 1);
         }
         broadcastScores();
+        const victim = ships.find(s => s.id === msg.id);
+        const killer = msg.killerId != null ? ships.find(s => s.id === msg.killerId) : null;
+        if (victim) {
+          if (killer) {
+            console.log(`[kill] ${killer.name || 'Player ' + (killer.id + 1)} killed ${victim.name || 'Player ' + (victim.id + 1)}`);
+          } else {
+            console.log(`[collision] ${victim.name || 'Player ' + (victim.id + 1)} destroyed`);
+          }
+        }
+      }
+
+      if (msg.type === 'chat') {
+        const prefix = msg.name ? `${msg.name}: ` : '';
+        console.log(`[chat] ${prefix}${msg.text}`);
       }
     } catch { /* ignore parse errors */ }
   });
 
   ws.on('close', () => {
+    const playerInfo = players.get(ws);
     players.delete(ws);
     scores.delete(id);
+    removeShip(id);
     broadcast(null, { type: 'leave', id });
+    console.log(`[leave] ${playerInfo?.name || 'Player ' + (id + 1)}`);
+
     // Clean up AI ships owned by this connection
     for (const [aiId, owner] of aiIds) {
       if (owner === ws) {
         aiIds.delete(aiId);
         scores.delete(aiId);
+        removeShip(aiId);
         broadcast(null, { type: 'leave', id: aiId });
       }
     }
+
+    serverLua.exposeShips();
   });
+
+  serverLua.exposeShips();
 });
 
-// Start server
-server.listen(PORT, () => {
+// --- REPL ---
+httpServer.listen(PORT, () => {
   console.log(`Spacewar server listening on:`);
   console.log(`  Local:  http://localhost:${PORT}`);
   if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
     console.log(`  World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}`);
   }
 
-  // Find LAN IP
   const nets = networkInterfaces();
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
@@ -196,6 +324,43 @@ server.listen(PORT, () => {
   if (process.argv.includes('--tunnel')) {
     startTunnel();
   }
+
+  console.log(`\nType Lua commands below. help() for reference.\n`);
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: '> ',
+  });
+
+  rl.prompt();
+
+  rl.on('line', (line) => {
+    const code = line.trim();
+    if (!code) {
+      rl.prompt();
+      return;
+    }
+
+    const { output, configDirty } = serverLua.execute(code);
+
+    for (const line of output) {
+      console.log(line);
+    }
+
+    // Broadcast config changes to clients
+    if (configDirty) {
+      const updates = ships.map(s => ({ id: s.id, ...s.config }));
+      lastLuaUpdate = updates;
+      broadcastAll({ type: 'luaUpdate', updates });
+    }
+
+    rl.prompt();
+  });
+
+  rl.on('close', () => {
+    process.exit(0);
+  });
 });
 
 async function startTunnel() {
