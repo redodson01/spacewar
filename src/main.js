@@ -189,6 +189,7 @@ net.onScores((scoreList) => {
 });
 
 net.onDeath((id, x, y, _killerId, _cause) => {
+  interpolator.unsuppress(id);
   const ship = ships.find(s => s.id === id);
   if (ship && !ship.state.destroyed) {
     spawnExplosion(explosions, x, y, ship.config.color, ship.config.explosionParticles);
@@ -198,6 +199,7 @@ net.onDeath((id, x, y, _killerId, _cause) => {
 });
 
 net.onRespawn((id, x, y) => {
+  interpolator.unsuppress(id);
   const ship = ships.find(s => s.id === id);
   if (ship) {
     ship.spawnX = x;
@@ -529,7 +531,7 @@ function gameLoop(time) {
         destroyShip(ship);
         if (networkMode) {
           if (ship.isLocal) net.sendDeath(ship, killerId, 'projectile');
-          else interpolator.remove(ship.id); // prevent state from undoing destruction
+          else interpolator.suppress(ship.id); // block state updates until death/respawn
         } else {
           leaderboard.recordKill(killerId);
         }
@@ -548,9 +550,9 @@ function gameLoop(time) {
         destroyShip(sj);
         if (networkMode) {
           if (si.isLocal) net.sendDeath(si, null, 'collision');
-          else interpolator.remove(si.id);
+          else interpolator.suppress(si.id);
           if (sj.isLocal) net.sendDeath(sj, null, 'collision');
-          else interpolator.remove(sj.id);
+          else interpolator.suppress(sj.id);
         } else {
           leaderboard.recordCollision(si.id, sj.id);
         }

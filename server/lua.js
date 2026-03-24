@@ -251,6 +251,10 @@ export function createShip(id, x, y, color) {
     name: null,
     config: { ...CONFIG_DEFAULTS, color },
     state: { ...STATE_DEFAULTS, x, y },
+    spawnX: x,
+    spawnY: y,
+    spawnAngle: undefined,
+    isLocal: false,
     isAI: false,
   };
 }

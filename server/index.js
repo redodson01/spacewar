@@ -119,6 +119,7 @@ const serverLua = createServerLua(ships, {
     const spawn = SPAWN_POSITIONS[id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
     const ship = createLuaShip(id, spawn.x, spawn.y, COLORS[id]);
     ship.state.angle = spawn.angle;
+    ship.spawnAngle = spawn.angle;
     ship.name = `Bot ${id + 1}`;
     ship.isAI = true;
     ships.push(ship);
