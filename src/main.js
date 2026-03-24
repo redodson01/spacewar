@@ -518,9 +518,8 @@ function gameLoop(time) {
 
   updateProjectiles(projectiles, dt, WORLD_WIDTH, WORLD_HEIGHT);
 
-  // Collision: projectiles vs ships (network: local ships only; local mode: all)
+  // Collision: projectiles vs all ships
   for (const ship of ships) {
-    if (networkMode && !ship.isLocal) continue; // owner handles collision
     if (!ship.state.destroyed && ship.state.invulnerableTimer <= 0) {
       const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
@@ -529,7 +528,8 @@ function gameLoop(time) {
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
         if (networkMode) {
-          net.sendDeath(ship, killerId, 'projectile');
+          if (ship.isLocal) net.sendDeath(ship, killerId, 'projectile');
+          else interpolator.remove(ship.id); // prevent state from undoing destruction
         } else {
           leaderboard.recordKill(killerId);
         }
@@ -537,11 +537,10 @@ function gameLoop(time) {
     }
   }
 
-  // Ship-ship collision (network: only if local ship involved; local mode: all pairs)
+  // Ship-ship collision: all pairs
   for (let i = 0; i < ships.length; i++) {
     for (let j = i + 1; j < ships.length; j++) {
       const si = ships[i], sj = ships[j];
-      if (networkMode && !si.isLocal && !sj.isLocal) continue; // owner handles
       if (si.state.invulnerableTimer <= 0 && sj.state.invulnerableTimer <= 0 && checkShipShipCollision(si, sj)) {
         spawnExplosion(explosions, si.state.x, si.state.y, si.config.color, si.config.explosionParticles);
         spawnExplosion(explosions, sj.state.x, sj.state.y, sj.config.color, sj.config.explosionParticles);
@@ -549,7 +548,9 @@ function gameLoop(time) {
         destroyShip(sj);
         if (networkMode) {
           if (si.isLocal) net.sendDeath(si, null, 'collision');
+          else interpolator.remove(si.id);
           if (sj.isLocal) net.sendDeath(sj, null, 'collision');
+          else interpolator.remove(sj.id);
         } else {
           leaderboard.recordCollision(si.id, sj.id);
         }
