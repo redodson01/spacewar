@@ -10,7 +10,6 @@ export function createNetClient() {
     leave: null,
     state: null,
     fire: null,
-    hit: null,
     death: null,
     respawn: null,
     scores: null,
@@ -47,10 +46,10 @@ export function createNetClient() {
             localId = msg.id;
             connected = true;
             clearTimeout(timeout);
-            resolve({ id: msg.id, color: msg.color, name: msg.name, players: msg.players });
+            resolve({ id: msg.id, name: msg.name, players: msg.players, scores: msg.scores });
             break;
           case 'join':
-            if (callbacks.join) callbacks.join(msg.id, msg.color, msg.name);
+            if (callbacks.join) callbacks.join(msg.id, msg.name);
             break;
           case 'leave':
             if (callbacks.leave) callbacks.leave(msg.id);
@@ -61,11 +60,8 @@ export function createNetClient() {
           case 'fire':
             if (callbacks.fire) callbacks.fire(msg.id, msg);
             break;
-          case 'hit':
-            if (callbacks.hit) callbacks.hit(msg.targetId, msg.killerId, msg.x, msg.y, msg.color);
-            break;
           case 'death':
-            if (callbacks.death) callbacks.death(msg.id, msg.x, msg.y, msg.color);
+            if (callbacks.death) callbacks.death(msg.id, msg.x, msg.y, msg.killerId, msg.cause);
             break;
           case 'respawn':
             if (callbacks.respawn) callbacks.respawn(msg.id, msg.x, msg.y);
@@ -111,41 +107,30 @@ export function createNetClient() {
     const now = performance.now();
     if (now - lastSendTime < SEND_INTERVAL) return;
     lastSendTime = now;
+    const s = ship.state;
     send({
       type: 'state',
-      x: ship.x,
-      y: ship.y,
-      angle: ship.angle,
-      vx: ship.vx,
-      vy: ship.vy,
-      thrusting: ship.thrusting,
-      destroyed: ship.destroyed,
-      color: ship.color,
+      x: s.x, y: s.y, angle: s.angle,
+      vx: s.vx, vy: s.vy,
+      thrusting: s.thrusting, destroyed: s.destroyed,
     });
   }
 
   function sendFire(ship) {
+    const s = ship.state;
     send({
       type: 'fire',
-      x: ship.x,
-      y: ship.y,
-      angle: ship.angle,
-      vx: ship.vx,
-      vy: ship.vy,
-      color: ship.color,
+      x: s.x, y: s.y, angle: s.angle,
+      vx: s.vx, vy: s.vy,
     });
   }
 
-  function sendHit(targetShip, killerId) {
-    send({ type: 'hit', targetId: targetShip.id, killerId, x: targetShip.x, y: targetShip.y, color: targetShip.color });
-  }
-
-  function sendDeath(ship, killerId = null) {
-    send({ type: 'death', x: ship.x, y: ship.y, color: ship.color, killerId });
+  function sendDeath(ship, killerId = null, cause = 'projectile') {
+    send({ type: 'death', x: ship.state.x, y: ship.state.y, killerId, cause });
   }
 
   function sendRespawn(ship) {
-    send({ type: 'respawn', x: ship.x, y: ship.y });
+    send({ type: 'respawn', x: ship.state.x, y: ship.state.y });
   }
 
   function sendLuaUpdate(updates) {
@@ -157,14 +142,12 @@ export function createNetClient() {
     disconnect,
     sendState,
     sendFire,
-    sendHit,
     sendDeath,
     sendRespawn,
     sendLuaUpdate,
     get isConnected() { return connected; },
     get localId() { return localId; },
     onJoin(cb) { callbacks.join = cb; },
-    onHit(cb) { callbacks.hit = cb; },
     onLeave(cb) { callbacks.leave = cb; },
     onScores(cb) { callbacks.scores = cb; },
     onLuaUpdate(cb) { callbacks.luaUpdate = cb; },
@@ -198,15 +181,15 @@ export function createInterpolator() {
 
     entry.t = Math.min(1, entry.t + dt / 0.05); // 0.05s = 20Hz window
     const { prev, next, t } = entry;
+    const s = ship.state;
 
-    ship.x = lerpWrap(prev.x, next.x, t, WORLD_WIDTH);
-    ship.y = lerpWrap(prev.y, next.y, t, WORLD_HEIGHT);
-    ship.angle = lerpAngle(prev.angle, next.angle, t);
-    ship.vx = lerp(prev.vx, next.vx, t);
-    ship.vy = lerp(prev.vy, next.vy, t);
-    ship.thrusting = next.thrusting;
-    ship.destroyed = next.destroyed;
-    if (next.color) ship.color = next.color;
+    s.x = lerpWrap(prev.x, next.x, t, WORLD_WIDTH);
+    s.y = lerpWrap(prev.y, next.y, t, WORLD_HEIGHT);
+    s.angle = lerpAngle(prev.angle, next.angle, t);
+    s.vx = lerp(prev.vx, next.vx, t);
+    s.vy = lerp(prev.vy, next.vy, t);
+    s.thrusting = next.thrusting;
+    s.destroyed = next.destroyed;
   }
 
   function remove(id) {
@@ -223,7 +206,6 @@ function lerp(a, b, t) {
 function lerpWrap(a, b, t, worldSize) {
   let diff = b - a;
   if (Math.abs(diff) > worldSize / 2) {
-    // Wrapping — snap to avoid sweeping across the world
     return b;
   }
   return a + diff * t;
@@ -231,7 +213,6 @@ function lerpWrap(a, b, t, worldSize) {
 
 function lerpAngle(a, b, t) {
   let diff = b - a;
-  // Normalize to [-PI, PI]
   while (diff > Math.PI) diff -= Math.PI * 2;
   while (diff < -Math.PI) diff += Math.PI * 2;
   return a + diff * t;

@@ -34,7 +34,8 @@ let networkMode = false;
 function makeShip(id) {
   const spawn = SPAWN_POSITIONS[id];
   const ship = createShip(id, spawn.x, spawn.y, PLAYER_COLORS[id]);
-  ship.angle = ship.spawnAngle = spawn.angle;
+  ship.spawnAngle = spawn.angle;
+  ship.state.angle = spawn.angle;
   return ship;
 }
 
@@ -45,7 +46,7 @@ function initLocalMode() {
   for (const s of ships) {
     s.isLocal = true;
     s.name = `Player ${s.id + 1}`;
-    leaderboard.addPlayer(s.id, s.name, s.color);
+    leaderboard.addPlayer(s.id, s.name, s.config.color);
   }
 }
 
@@ -84,7 +85,7 @@ try {
 
 const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
   for (const ship of ships) {
-    resetShip(ship, ship.spawnX, ship.spawnY);
+    resetShip(ship);
   }
   projectiles.length = 0;
   explosions.length = 0;
@@ -98,7 +99,7 @@ window.addEventListener('resize', () => {
 
 // --- Networking callbacks ---
 
-net.onJoin((id, _color, name) => {
+net.onJoin((id, name) => {
   if (ships.find(s => s.id === id)) return;
   const ship = makeShip(id);
   ship.isLocal = false;
@@ -129,36 +130,26 @@ net.onFire((id, data) => {
   const ship = ships.find(s => s.id === id);
   if (!ship) return;
   projectiles.push({
-    x: data.x + Math.cos(data.angle) * ship.radius,
-    y: data.y + Math.sin(data.angle) * ship.radius,
+    x: data.x + Math.cos(data.angle) * ship.config.radius,
+    y: data.y + Math.sin(data.angle) * ship.config.radius,
     vx: data.vx + Math.cos(data.angle) * PROJECTILE_DEFAULTS.speed,
     vy: data.vy + Math.sin(data.angle) * PROJECTILE_DEFAULTS.speed,
     age: 0,
     lifetime: PROJECTILE_DEFAULTS.lifetime,
     radius: PROJECTILE_DEFAULTS.radius,
-    color: data.color,
+    color: ship.config.color,
     ownerId: id,
   });
-});
-
-net.onHit((targetId, killerId, _x, _y, _color) => {
-  // Another client says we got hit by a projectile
-  const ship = ships.find(s => s.id === targetId && s.isLocal);
-  if (ship && !ship.destroyed) {
-    spawnExplosion(explosions, ship.x, ship.y, ship.color, ship.explosionParticles);
-    destroyShip(ship);
-    net.sendDeath(ship, killerId);
-  }
 });
 
 net.onScores((scoreList) => {
   leaderboard.setScores(scoreList);
 });
 
-net.onDeath((id, x, y, color) => {
+net.onDeath((id, x, y, _killerId, _cause) => {
   const ship = ships.find(s => s.id === id);
-  if (ship && !ship.destroyed) {
-    spawnExplosion(explosions, x, y, color, ship.explosionParticles);
+  if (ship && !ship.state.destroyed) {
+    spawnExplosion(explosions, x, y, ship.config.color, ship.config.explosionParticles);
     destroyShip(ship);
     interpolator.remove(id);
   }
@@ -167,7 +158,9 @@ net.onDeath((id, x, y, color) => {
 net.onRespawn((id, x, y) => {
   const ship = ships.find(s => s.id === id);
   if (ship) {
-    resetShip(ship, x, y);
+    ship.spawnX = x;
+    ship.spawnY = y;
+    resetShip(ship);
     interpolator.remove(id);
   }
 });
@@ -176,15 +169,8 @@ net.onLuaUpdate((updates) => {
   for (const u of updates) {
     const ship = ships.find(s => s.id === u.id);
     if (!ship) continue;
-    ship.color = u.color;
-    ship.radius = u.radius;
-    ship.thrust = u.thrust;
-    ship.turnSpeed = u.turnSpeed;
-    ship.friction = u.friction;
-    ship.fireCooldown = u.fireCooldown;
-    ship.showName = u.showName;
-    ship.controlScheme = u.controlScheme;
-    ship.explosionParticles = u.explosionParticles;
+    Object.assign(ship.config, u);
+    delete ship.config.id; // id is not a config property
     leaderboard.updateColor(u.id, u.color);
   }
 });
@@ -214,7 +200,7 @@ net.connect(playerName || 'Player').then((welcome) => {
   ships.push(localShip);
 
   for (const p of welcome.players) {
-    const ship = makeShip(p.id); // makeShip uses PLAYER_COLORS[id]
+    const ship = makeShip(p.id);
     ship.isLocal = false;
     ship.name = p.name;
     ships.push(ship);
@@ -263,8 +249,7 @@ function gameLoop(time) {
     const ship = ships[i];
 
     if (ship.isLocal) {
-      // Local ship: read from keyboard
-      const bindings = PLAYER_BINDINGS[ship.controlScheme || (networkMode ? 0 : i)];
+      const bindings = PLAYER_BINDINGS[ship.config.controlScheme || (networkMode ? 0 : i)];
       const actions = getActions(input.keys, bindings);
 
       const respawned = tickRespawn(ship, dt);
@@ -273,14 +258,13 @@ function gameLoop(time) {
       updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
       tickFireCooldown(ship, dt);
       const fire = actions.fire || (networkMode && input.keys['Space']);
-      if (fire && !ship.destroyed) {
+      if (fire && !ship.state.destroyed) {
         if (fireProjectile(projectiles, ship)) {
           if (networkMode) net.sendFire(ship);
         }
       }
       if (networkMode) net.sendState(ship);
     } else {
-      // Remote ship: apply interpolated state from network
       interpolator.apply(ship, dt);
     }
     tickInvulnerable(ship, dt);
@@ -290,16 +274,15 @@ function gameLoop(time) {
 
   // Collision: projectiles vs all ships
   for (const ship of ships) {
-    if (!ship.destroyed && ship.invulnerableTimer <= 0) {
+    if (!ship.state.destroyed && ship.state.invulnerableTimer <= 0) {
       const hitIdx = checkShipProjectileCollision(ship, projectiles);
       if (hitIdx >= 0) {
         const killerId = projectiles[hitIdx].ownerId;
-        spawnExplosion(explosions, ship.x, ship.y, ship.color, ship.explosionParticles);
+        spawnExplosion(explosions, ship.state.x, ship.state.y, ship.config.color, ship.config.explosionParticles);
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
         if (networkMode) {
-          if (ship.isLocal) net.sendDeath(ship, killerId);
-          else net.sendHit(ship, killerId);
+          net.sendDeath(ship, killerId, 'projectile');
         } else {
           leaderboard.recordKill(killerId);
         }
@@ -310,18 +293,17 @@ function gameLoop(time) {
   // Ship-ship collision: all pairs
   for (let i = 0; i < ships.length; i++) {
     for (let j = i + 1; j < ships.length; j++) {
-      if (ships[i].invulnerableTimer <= 0 && ships[j].invulnerableTimer <= 0 && checkShipShipCollision(ships[i], ships[j])) {
-        spawnExplosion(explosions, ships[i].x, ships[i].y, ships[i].color, ships[i].explosionParticles);
-        spawnExplosion(explosions, ships[j].x, ships[j].y, ships[j].color, ships[j].explosionParticles);
-        destroyShip(ships[i]);
-        destroyShip(ships[j]);
+      const si = ships[i], sj = ships[j];
+      if (si.state.invulnerableTimer <= 0 && sj.state.invulnerableTimer <= 0 && checkShipShipCollision(si, sj)) {
+        spawnExplosion(explosions, si.state.x, si.state.y, si.config.color, si.config.explosionParticles);
+        spawnExplosion(explosions, sj.state.x, sj.state.y, sj.config.color, sj.config.explosionParticles);
+        destroyShip(si);
+        destroyShip(sj);
         if (networkMode) {
-          if (ships[i].isLocal) net.sendDeath(ships[i]);
-          else net.sendHit(ships[i], null);
-          if (ships[j].isLocal) net.sendDeath(ships[j]);
-          else net.sendHit(ships[j], null);
+          net.sendDeath(si, null, 'collision');
+          net.sendDeath(sj, null, 'collision');
         } else {
-          leaderboard.recordCollision(ships[i].id, ships[j].id);
+          leaderboard.recordCollision(si.id, sj.id);
         }
       }
     }

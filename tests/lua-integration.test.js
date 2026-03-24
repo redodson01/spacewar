@@ -3,7 +3,6 @@ import { createLuaContext } from '../src/lua-integration.js';
 import * as fengariLib from 'fengari';
 import * as interop from 'fengari-interop';
 
-// Assemble fengari object matching the shape of the CDN global
 const fengari = {
   lua: fengariLib.lua,
   lauxlib: fengariLib.lauxlib,
@@ -14,7 +13,12 @@ const fengari = {
 };
 
 function makeShip(id = 0) {
-  return { id, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 20, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, color: '#f00', fireCooldown: 0.25, fireCooldownTimer: 0, destroyed: false, respawnTimer: 0 };
+  return {
+    id,
+    name: null,
+    config: { color: '#f00', radius: 20, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, fireCooldown: 0.25, showName: false, controlScheme: 0, explosionParticles: 25 },
+    state: { x: 400, y: 300, angle: 0, vx: 0, vy: 0, thrusting: false, destroyed: false, respawnTimer: 0, invulnerableTimer: 0, fireCooldownTimer: 0 },
+  };
 }
 
 function makeCanvas() {
@@ -26,7 +30,7 @@ describe('createLuaContext', () => {
 
   beforeEach(() => {
     ships = [makeShip(0), makeShip(1)];
-    ships[1].color = '#00f';
+    ships[1].config.color = '#00f';
     projectiles = [];
     explosions = [];
     canvas = makeCanvas();
@@ -124,25 +128,36 @@ describe('createLuaContext', () => {
     });
   });
 
-  describe('ship globals', () => {
-    it('exposes ship as alias for ship1 (player 1)', () => {
+  describe('ship globals (flat proxy)', () => {
+    it('exposes ship.color via proxy (reads config)', () => {
       luaCtx.runLuaREPL('ship.color');
-      expect(output).toHaveBeenCalledWith(ships[0].color);
+      expect(output).toHaveBeenCalledWith(ships[0].config.color);
     });
 
     it('exposes ship1 as player 1', () => {
       luaCtx.runLuaREPL('ship1.color');
-      expect(output).toHaveBeenCalledWith(ships[0].color);
+      expect(output).toHaveBeenCalledWith(ships[0].config.color);
     });
 
     it('exposes ship2 as player 2', () => {
       luaCtx.runLuaREPL('ship2.color');
-      expect(output).toHaveBeenCalledWith(ships[1].color);
+      expect(output).toHaveBeenCalledWith(ships[1].config.color);
     });
 
-    it('can modify ship2 properties', () => {
+    it('can modify ship2 config via flat proxy', () => {
       luaCtx.runLua('ship2.color = "#0f0"');
-      expect(ships[1].color).toBe('#0f0');
+      expect(ships[1].config.color).toBe('#0f0');
+    });
+
+    it('can read ship state via flat proxy', () => {
+      ships[0].state.x = 123;
+      luaCtx.runLuaREPL('ship.x');
+      expect(output).toHaveBeenCalledWith('123.0');
+    });
+
+    it('can write ship state via flat proxy', () => {
+      luaCtx.runLua('ship.x = 500');
+      expect(ships[0].state.x).toBe(500);
     });
 
     it('reports world dimensions for screen size', () => {
@@ -163,7 +178,7 @@ describe('createLuaContext', () => {
     });
 
     it('does not fire when ship is destroyed', () => {
-      ships[0].destroyed = true;
+      ships[0].state.destroyed = true;
       luaCtx.runLua('shoot()');
       expect(projectiles).toHaveLength(0);
     });

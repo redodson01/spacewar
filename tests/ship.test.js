@@ -1,91 +1,89 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SHIP_DEFAULTS, RESPAWN_DELAY, createShip, resetShip, updateShip, destroyShip, tickRespawn } from '../src/ship.js';
+import { CONFIG_DEFAULTS, RESPAWN_DELAY, createShip, resetShip, updateShip, destroyShip, tickRespawn } from '../src/ship.js';
 
 describe('createShip', () => {
   it('creates a ship with id, position, and color', () => {
     const ship = createShip(0, 400, 300, '#f00');
     expect(ship.id).toBe(0);
-    expect(ship.x).toBe(400);
-    expect(ship.y).toBe(300);
-    expect(ship.color).toBe('#f00');
+    expect(ship.state.x).toBe(400);
+    expect(ship.state.y).toBe(300);
+    expect(ship.config.color).toBe('#f00');
     expect(ship.spawnX).toBe(400);
     expect(ship.spawnY).toBe(300);
   });
 
   it('uses default color when not specified', () => {
     const ship = createShip(0, 0, 0);
-    expect(ship.color).toBe('#0ff');
+    expect(ship.config.color).toBe('#0ff');
   });
 
-  it('applies default values', () => {
+  it('applies config defaults', () => {
     const ship = createShip(0, 0, 0);
-    expect(ship.thrust).toBe(0.15);
-    expect(ship.turnSpeed).toBe(0.05);
-    expect(ship.friction).toBe(0.995);
-    expect(ship.radius).toBe(20);
-    expect(ship.vx).toBe(0);
-    expect(ship.vy).toBe(0);
-    expect(ship.fireCooldown).toBe(0.25);
-    expect(ship.fireCooldownTimer).toBe(0);
-    expect(ship.destroyed).toBe(false);
-    expect(ship.respawnTimer).toBe(0);
-    expect(ship.thrusting).toBe(false);
+    expect(ship.config.thrust).toBe(0.15);
+    expect(ship.config.turnSpeed).toBe(0.05);
+    expect(ship.config.friction).toBe(0.995);
+    expect(ship.config.radius).toBe(20);
+    expect(ship.config.fireCooldown).toBe(0.25);
+  });
+
+  it('applies state defaults', () => {
+    const ship = createShip(0, 100, 200);
+    expect(ship.state.vx).toBe(0);
+    expect(ship.state.vy).toBe(0);
+    expect(ship.state.destroyed).toBe(false);
+    expect(ship.state.respawnTimer).toBe(0);
+    expect(ship.state.thrusting).toBe(false);
+    expect(ship.state.fireCooldownTimer).toBe(0);
   });
 });
 
 describe('resetShip', () => {
-  it('restores physics state and recenters', () => {
+  it('restores state and recenters at spawn', () => {
     const ship = createShip(0, 400, 300, '#f0f');
-    ship.vx = 10;
-    ship.vy = -5;
-    ship.x = 0;
-    ship.y = 0;
-    ship.destroyed = true;
+    ship.state.vx = 10;
+    ship.state.vy = -5;
+    ship.state.x = 0;
+    ship.state.y = 0;
+    ship.state.destroyed = true;
 
-    resetShip(ship, 500, 400);
+    resetShip(ship);
 
-    expect(ship.x).toBe(500);
-    expect(ship.y).toBe(400);
-    expect(ship.vx).toBe(0);
-    expect(ship.vy).toBe(0);
-    expect(ship.destroyed).toBe(false);
+    expect(ship.state.x).toBe(400);
+    expect(ship.state.y).toBe(300);
+    expect(ship.state.vx).toBe(0);
+    expect(ship.state.vy).toBe(0);
+    expect(ship.state.destroyed).toBe(false);
   });
 
-  it('preserves scenario properties across reset', () => {
+  it('preserves config across reset', () => {
     const ship = createShip(0, 400, 300, '#f0f');
-    ship.thrust = 0.5;
-    ship.turnSpeed = 0.1;
-    ship.friction = 0.99;
-    ship.fireCooldown = 0.1;
-    ship.radius = 30;
-    ship.showName = true;
-    ship.controlScheme = 1;
-    ship.explosionParticles = 50;
+    ship.config.thrust = 0.5;
+    ship.config.turnSpeed = 0.1;
+    ship.config.friction = 0.99;
+    ship.config.fireCooldown = 0.1;
+    ship.config.radius = 30;
+    ship.config.showName = true;
+    ship.config.controlScheme = 1;
+    ship.config.explosionParticles = 50;
 
-    resetShip(ship, 400, 300);
+    resetShip(ship);
 
-    expect(ship.color).toBe('#f0f');
-    expect(ship.thrust).toBe(0.5);
-    expect(ship.turnSpeed).toBe(0.1);
-    expect(ship.friction).toBe(0.99);
-    expect(ship.fireCooldown).toBe(0.1);
-    expect(ship.radius).toBe(30);
-    expect(ship.showName).toBe(true);
-    expect(ship.controlScheme).toBe(1);
-    expect(ship.explosionParticles).toBe(50);
+    expect(ship.config.color).toBe('#f0f');
+    expect(ship.config.thrust).toBe(0.5);
+    expect(ship.config.turnSpeed).toBe(0.1);
+    expect(ship.config.friction).toBe(0.99);
+    expect(ship.config.fireCooldown).toBe(0.1);
+    expect(ship.config.radius).toBe(30);
+    expect(ship.config.showName).toBe(true);
+    expect(ship.config.controlScheme).toBe(1);
+    expect(ship.config.explosionParticles).toBe(50);
   });
 
-  it('preserves ship color', () => {
-    const ship = createShip(0, 400, 300, '#f0f');
-    resetShip(ship, 400, 300);
-    expect(ship.color).toBe('#f0f');
-  });
-
-  it('preserves ship id and spawn position', () => {
+  it('preserves identity across reset', () => {
     const ship = createShip(1, 400, 300);
-    ship.x = 0;
-    ship.y = 0;
-    resetShip(ship, 400, 300);
+    ship.state.x = 0;
+    ship.state.y = 0;
+    resetShip(ship);
     expect(ship.id).toBe(1);
     expect(ship.spawnX).toBe(400);
     expect(ship.spawnY).toBe(300);
@@ -93,10 +91,10 @@ describe('resetShip', () => {
 
   it('restores spawnAngle when set', () => {
     const ship = createShip(0, 400, 300);
-    ship.angle = ship.spawnAngle = Math.PI;
-    ship.angle = 0.5; // changed during play
-    resetShip(ship, 400, 300);
-    expect(ship.angle).toBe(Math.PI);
+    ship.spawnAngle = Math.PI;
+    ship.state.angle = 0.5;
+    resetShip(ship);
+    expect(ship.state.angle).toBe(Math.PI);
   });
 });
 
@@ -104,8 +102,8 @@ describe('destroyShip', () => {
   it('marks the ship as destroyed with a respawn timer', () => {
     const ship = createShip(0, 400, 300);
     destroyShip(ship);
-    expect(ship.destroyed).toBe(true);
-    expect(ship.respawnTimer).toBe(RESPAWN_DELAY);
+    expect(ship.state.destroyed).toBe(true);
+    expect(ship.state.respawnTimer).toBe(RESPAWN_DELAY);
   });
 });
 
@@ -119,20 +117,20 @@ describe('tickRespawn', () => {
     const ship = createShip(0, 400, 300);
     destroyShip(ship);
     tickRespawn(ship, 0.5);
-    expect(ship.respawnTimer).toBeCloseTo(RESPAWN_DELAY - 0.5);
-    expect(ship.destroyed).toBe(true);
+    expect(ship.state.respawnTimer).toBeCloseTo(RESPAWN_DELAY - 0.5);
+    expect(ship.state.destroyed).toBe(true);
   });
 
   it('resets the ship at its spawn point when timer expires', () => {
     const ship = createShip(0, 400, 300);
-    ship.x = 100;
-    ship.y = 100;
+    ship.state.x = 100;
+    ship.state.y = 100;
     destroyShip(ship);
     const result = tickRespawn(ship, RESPAWN_DELAY + 0.1);
     expect(result).toBe(true);
-    expect(ship.destroyed).toBe(false);
-    expect(ship.x).toBe(400);
-    expect(ship.y).toBe(300);
+    expect(ship.state.destroyed).toBe(false);
+    expect(ship.state.x).toBe(400);
+    expect(ship.state.y).toBe(300);
   });
 });
 
@@ -146,95 +144,95 @@ describe('updateShip', () => {
   });
 
   it('does not move without input', () => {
-    const prevX = ship.x;
-    const prevY = ship.y;
+    const prevX = ship.state.x;
+    const prevY = ship.state.y;
     updateShip(ship, {}, W, H);
-    expect(ship.x).toBe(prevX);
-    expect(ship.y).toBe(prevY);
+    expect(ship.state.x).toBe(prevX);
+    expect(ship.state.y).toBe(prevY);
   });
 
   it('applies thrust in the facing direction', () => {
-    ship.angle = 0;
+    ship.state.angle = 0;
     updateShip(ship, { thrust: true }, W, H);
-    expect(ship.vx).toBeGreaterThan(0);
-    expect(ship.vy).toBeCloseTo(0, 10);
+    expect(ship.state.vx).toBeGreaterThan(0);
+    expect(ship.state.vy).toBeCloseTo(0, 10);
   });
 
   it('sets thrusting flag', () => {
     updateShip(ship, { thrust: true }, W, H);
-    expect(ship.thrusting).toBe(true);
+    expect(ship.state.thrusting).toBe(true);
     updateShip(ship, {}, W, H);
-    expect(ship.thrusting).toBe(false);
+    expect(ship.state.thrusting).toBe(false);
   });
 
   it('turns left', () => {
-    const prevAngle = ship.angle;
+    const prevAngle = ship.state.angle;
     updateShip(ship, { left: true }, W, H);
-    expect(ship.angle).toBeLessThan(prevAngle);
+    expect(ship.state.angle).toBeLessThan(prevAngle);
   });
 
   it('turns right', () => {
-    const prevAngle = ship.angle;
+    const prevAngle = ship.state.angle;
     updateShip(ship, { right: true }, W, H);
-    expect(ship.angle).toBeGreaterThan(prevAngle);
+    expect(ship.state.angle).toBeGreaterThan(prevAngle);
   });
 
   it('applies friction to slow down', () => {
-    ship.vx = 10;
-    ship.vy = 10;
+    ship.state.vx = 10;
+    ship.state.vy = 10;
     updateShip(ship, {}, W, H);
-    expect(ship.vx).toBeLessThan(10);
-    expect(ship.vy).toBeLessThan(10);
-    expect(ship.vx).toBeCloseTo(10 * SHIP_DEFAULTS.friction, 10);
+    expect(ship.state.vx).toBeLessThan(10);
+    expect(ship.state.vy).toBeLessThan(10);
+    expect(ship.state.vx).toBeCloseTo(10 * CONFIG_DEFAULTS.friction, 10);
   });
 
   it('wraps around the left edge', () => {
-    ship.x = -1;
-    ship.vx = 0;
+    ship.state.x = -1;
+    ship.state.vx = 0;
     updateShip(ship, {}, W, H);
-    expect(ship.x).toBe(W);
+    expect(ship.state.x).toBe(W);
   });
 
   it('wraps around the right edge', () => {
-    ship.x = W + 1;
-    ship.vx = 0;
+    ship.state.x = W + 1;
+    ship.state.vx = 0;
     updateShip(ship, {}, W, H);
-    expect(ship.x).toBe(0);
+    expect(ship.state.x).toBe(0);
   });
 
   it('wraps around the top edge', () => {
-    ship.y = -1;
-    ship.vy = 0;
+    ship.state.y = -1;
+    ship.state.vy = 0;
     updateShip(ship, {}, W, H);
-    expect(ship.y).toBe(H);
+    expect(ship.state.y).toBe(H);
   });
 
   it('wraps around the bottom edge', () => {
-    ship.y = H + 1;
-    ship.vy = 0;
+    ship.state.y = H + 1;
+    ship.state.vy = 0;
     updateShip(ship, {}, W, H);
-    expect(ship.y).toBe(0);
+    expect(ship.state.y).toBe(0);
   });
 
   it('respects custom thrust value', () => {
-    ship.angle = 0;
-    ship.thrust = 0.5;
+    ship.state.angle = 0;
+    ship.config.thrust = 0.5;
     updateShip(ship, { thrust: true }, W, H);
-    expect(ship.vx).toBeCloseTo(0.5 * ship.friction, 10);
+    expect(ship.state.vx).toBeCloseTo(0.5 * ship.config.friction, 10);
   });
 
   it('respects custom turnSpeed value', () => {
-    ship.turnSpeed = 0.2;
-    const prevAngle = ship.angle;
+    ship.config.turnSpeed = 0.2;
+    const prevAngle = ship.state.angle;
     updateShip(ship, { left: true }, W, H);
-    expect(ship.angle).toBeCloseTo(prevAngle - 0.2, 10);
+    expect(ship.state.angle).toBeCloseTo(prevAngle - 0.2, 10);
   });
 
   it('is a no-op when destroyed', () => {
-    ship.vx = 5;
-    ship.destroyed = true;
-    const prevX = ship.x;
+    ship.state.vx = 5;
+    ship.state.destroyed = true;
+    const prevX = ship.state.x;
     updateShip(ship, { thrust: true }, W, H);
-    expect(ship.x).toBe(prevX);
+    expect(ship.state.x).toBe(prevX);
   });
 });

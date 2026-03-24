@@ -1,5 +1,27 @@
 import { fireProjectile } from './projectiles.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
+import { CONFIG_DEFAULTS, STATE_DEFAULTS } from './ship.js';
+
+// Create a flat proxy over a structured ship so Lua scripts can use
+// ship.color (maps to ship.config.color), ship.x (maps to ship.state.x), etc.
+const CONFIG_KEYS = new Set(Object.keys(CONFIG_DEFAULTS));
+const STATE_KEYS = new Set(Object.keys(STATE_DEFAULTS));
+
+function createShipProxy(ship) {
+  return new Proxy(ship, {
+    get(target, prop) {
+      if (CONFIG_KEYS.has(prop)) return target.config[prop];
+      if (STATE_KEYS.has(prop)) return target.state[prop];
+      return target[prop];
+    },
+    set(target, prop, value) {
+      if (CONFIG_KEYS.has(prop)) { target.config[prop] = value; return true; }
+      if (STATE_KEYS.has(prop)) { target.state[prop] = value; return true; }
+      target[prop] = value;
+      return true;
+    },
+  });
+}
 
 export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
   let onShipUpdate = null;
@@ -25,7 +47,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
 
   const L = lauxlib.luaL_newstate();
   lualib.luaL_openlibs(L);
-  // Pre-cache frequently used Lua strings to avoid allocations in hot paths
   const LUA_ON_UPDATE = toLua("onUpdate");
   const LUA_SHIP = toLua("ship");
   const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4")];
@@ -33,15 +54,12 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   const LUA_SHOOT = toLua("shoot");
   const LUA_PROJECTILES = toLua("projectiles");
 
-  // NOTE: luaopen_js gives Lua scripts access to JS globals via the js interop
-  // module. This is acceptable for local single-player scripting but must be
-  // restricted before running untrusted scripts (e.g., multiplayer).
   lauxlib.luaL_requiref(L, toLua("js"), interop.luaopen_js, 1);
   lua.lua_pop(L, 1);
 
   function exposeShips() {
     // ship = local player (always ships[0] in the array)
-    interop.push(L, ships[0]);
+    interop.push(L, createShipProxy(ships[0]));
     lua.lua_setglobal(L, LUA_SHIP);
     // Clear all numbered globals first
     for (const g of LUA_SHIP_GLOBALS) {
@@ -51,7 +69,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     // Set present ships by their ID
     for (const s of ships) {
       if (s.id >= 0 && s.id < 4) {
-        interop.push(L, s);
+        interop.push(L, createShipProxy(s));
         lua.lua_setglobal(L, LUA_SHIP_GLOBALS[s.id]);
       }
     }
@@ -60,11 +78,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   function broadcastShipUpdates() {
     if (onShipUpdate) {
       onShipUpdate(ships.map(s => ({
-        id: s.id, color: s.color, radius: s.radius,
-        thrust: s.thrust, turnSpeed: s.turnSpeed,
-        friction: s.friction, fireCooldown: s.fireCooldown,
-        showName: s.showName, controlScheme: s.controlScheme,
-        explosionParticles: s.explosionParticles,
+        id: s.id, ...s.config,
       })));
     }
   }
@@ -200,7 +214,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   lua.lua_setglobal(L, LUA_PROJECTILES);
 
   lua.lua_pushcfunction(L, function () {
-    if (!ships[0].destroyed) fireProjectile(projectiles, ships[0]);
+    if (!ships[0].state.destroyed) fireProjectile(projectiles, ships[0]);
     return 0;
   });
   lua.lua_setglobal(L, LUA_SHOOT);

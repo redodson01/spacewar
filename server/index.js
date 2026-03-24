@@ -99,14 +99,13 @@ wss.on('connection', (ws, req) => {
   ws.send(JSON.stringify({
     type: 'welcome',
     id,
-    color,
     name,
-    players: existingPlayers,
+    players: existingPlayers.map(p => ({ id: p.id, name: p.name })),
     scores: [...scores.entries()].map(([sid, score]) => ({ id: sid, score })),
   }));
 
   // Announce to others
-  broadcast(ws, { type: 'join', id, color, name });
+  broadcast(ws, { type: 'join', id, name });
 
   ws.on('message', (raw) => {
     const str = raw.toString();
@@ -116,11 +115,10 @@ wss.on('connection', (ws, req) => {
     try {
       const msg = JSON.parse(str);
       if (msg.type === 'death') {
-        if (msg.killerId != null && scores.has(msg.killerId)) {
+        if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
           scores.set(msg.killerId, scores.get(msg.killerId) + 1);
         }
-        if (msg.killerId == null && msg.id != null && scores.has(msg.id)) {
-          // Ship-ship collision: dying ship gets -1
+        if (msg.cause === 'collision' && msg.id != null && scores.has(msg.id)) {
           scores.set(msg.id, scores.get(msg.id) - 1);
         }
         broadcastScores();
