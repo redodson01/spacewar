@@ -54,13 +54,15 @@ function initLocalMode() {
 }
 
 initLocalMode();
+// Show hints after a short delay so they don't get cleared by network connect
+setTimeout(() => { if (!networkMode) showHelpInChat(); }, 2500);
 
 // Editor DOM elements
 const elements = {
   editor: document.getElementById('editor'),
   scriptArea: document.getElementById('script-input'),
   outputDiv: document.getElementById('output'),
-  hintDiv: document.getElementById('hint'),
+  hintDiv: null,
   replInput: document.getElementById('repl-input'),
   exampleSelect: document.getElementById('example-select'),
   runBtn: document.getElementById('run-btn'),
@@ -186,6 +188,18 @@ net.onChat((name, color, text) => {
   chat.addMessage(name, color, text);
 });
 
+function showHelpInChat() {
+  const hint = '#586e75'; // Solarized base01
+  if (networkMode) {
+    chat.addMessage('', hint, 'WASD + Space to shoot | Enter to chat | /help for help');
+    if (net.localId === 0) {
+      chat.addMessage('', hint, 'Host: ` for editor | /command to run Lua');
+    }
+  } else {
+    chat.addMessage('', hint, 'P1: WASD + Space | P2: Arrows + / | ` for editor');
+  }
+}
+
 // Chat input handling
 const chatBar = document.getElementById('chat-bar');
 const chatInput = document.getElementById('chat-input');
@@ -213,20 +227,25 @@ chatInput.addEventListener('keydown', (e) => {
         saveChatHistory(chatHistory);
       }
       chatHistoryIdx = chatHistory.length;
-      if (text.startsWith('/')) {
-        // Run as Lua command — output goes to editor, chat, and network
-        const origAppendOutput = appendOutput;
-        const chatOutputs = [];
-        appendOutput = (t, isError) => {
-          origAppendOutput(t, isError);
-          // Skip the echo line ("> command")
-          if (!t.startsWith('> ')) chatOutputs.push(t);
-        };
-        luaCtx.runLuaREPL(text.slice(1));
-        appendOutput = origAppendOutput;
-        for (const line of chatOutputs) {
-          chat.addMessage('', '#2aa198', line);
-          net.sendChat('', '#2aa198', line);
+      if (text === '/help') {
+        showHelpInChat();
+      } else if (text.startsWith('/')) {
+        if (!networkMode || net.localId === 0) {
+          // Run as Lua command — output goes to editor, chat, and network
+          const origAppendOutput = appendOutput;
+          const chatOutputs = [];
+          appendOutput = (t, isError) => {
+            origAppendOutput(t, isError);
+            if (!t.startsWith('> ')) chatOutputs.push(t);
+          };
+          luaCtx.runLuaREPL(text.slice(1));
+          appendOutput = origAppendOutput;
+          for (const line of chatOutputs) {
+            chat.addMessage('', '#2aa198', line);
+            net.sendChat('', '#2aa198', line);
+          }
+        } else {
+          chat.addMessage('', '#dc322f', 'Only the host can run /commands.');
         }
       } else {
         const localShip = ships.find(s => s.isLocal);
@@ -356,7 +375,7 @@ net.connect().then((welcome) => {
   }
 
   luaCtx.reset();
-  elements.hintDiv.textContent = 'WASD + Space | ` for editor';
+  showHelpInChat();
 });
 
 // Rendering transform: map world coordinates to canvas
