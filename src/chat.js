@@ -42,15 +42,19 @@ export function createChat() {
       ctx.shadowColor = msg.color;
       ctx.shadowBlur = 4;
 
-      // Name in player color
-      ctx.fillStyle = msg.color;
-      const nameStr = `${msg.name}: `;
-      ctx.fillText(nameStr, 15, y);
-      const nameWidth = ctx.measureText(nameStr).width;
-
-      // Message text in base0
-      ctx.fillStyle = '#839496';
-      ctx.fillText(msg.text, 15 + nameWidth, y);
+      if (msg.name) {
+        // Name in player color, message in base0
+        ctx.fillStyle = msg.color;
+        const nameStr = `${msg.name}: `;
+        ctx.fillText(nameStr, 15, y);
+        const nameWidth = ctx.measureText(nameStr).width;
+        ctx.fillStyle = '#839496';
+        ctx.fillText(msg.text, 15 + nameWidth, y);
+      } else {
+        // No name prefix — just the message in the color
+        ctx.fillStyle = msg.color;
+        ctx.fillText(msg.text, 15, y);
+      }
 
       y -= 22;
       if (y < worldHeight / 2) break; // don't fill more than half the screen

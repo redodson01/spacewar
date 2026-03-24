@@ -225,8 +225,8 @@ chatInput.addEventListener('keydown', (e) => {
         luaCtx.runLuaREPL(text.slice(1));
         appendOutput = origAppendOutput;
         for (const line of chatOutputs) {
-          chat.addMessage('Lua', '#2aa198', line);
-          net.sendChat('Lua', '#2aa198', line);
+          chat.addMessage('', '#2aa198', line);
+          net.sendChat('', '#2aa198', line);
         }
       } else {
         const localShip = ships.find(s => s.isLocal);
