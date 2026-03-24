@@ -50,10 +50,10 @@ export function createLeaderboard() {
     const scores = getScores();
     if (scores.length === 0) return;
 
-    ctx.font = '18px monospace';
+    ctx.font = '14px monospace';
     ctx.textAlign = 'left';
     const x = 15;
-    let y = 25;
+    let y = 15 + 14; // 15px padding + font size
 
     const col2 = x + 50;
     ctx.fillStyle = '#839496';

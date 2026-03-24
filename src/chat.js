@@ -25,10 +25,10 @@ export function createChat() {
   function draw(ctx, worldWidth, worldHeight) {
     if (messages.length === 0) return;
 
-    ctx.font = '16px monospace';
+    ctx.font = '14px monospace';
     ctx.textAlign = 'left';
 
-    let y = worldHeight - 10;
+    let y = worldHeight - 15; // 15px padding from bottom border
 
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
