@@ -189,6 +189,8 @@ net.onChat((name, color, text) => {
 const chatBar = document.getElementById('chat-bar');
 const chatInput = document.getElementById('chat-input');
 let chatOpen = false;
+const chatHistory = [];
+let chatHistoryIdx = 0;
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Enter' && !chatOpen && networkMode && e.target === document.body) {
@@ -205,6 +207,10 @@ chatInput.addEventListener('keydown', (e) => {
     e.preventDefault();
     const text = chatInput.value.trim();
     if (text) {
+      if (chatHistory[chatHistory.length - 1] !== text) {
+        chatHistory.push(text);
+      }
+      chatHistoryIdx = chatHistory.length;
       if (text.startsWith('/')) {
         // Run as Lua command — output goes to both editor and chat
         const origAppendOutput = appendOutput;
@@ -236,6 +242,21 @@ chatInput.addEventListener('keydown', (e) => {
     chatOpen = false;
     chatBar.classList.remove('open');
     chatInput.blur();
+  } else if (e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (chatHistoryIdx > 0) {
+      chatHistoryIdx--;
+      chatInput.value = chatHistory[chatHistoryIdx];
+    }
+  } else if (e.code === 'ArrowDown') {
+    e.preventDefault();
+    if (chatHistoryIdx < chatHistory.length - 1) {
+      chatHistoryIdx++;
+      chatInput.value = chatHistory[chatHistoryIdx];
+    } else {
+      chatHistoryIdx = chatHistory.length;
+      chatInput.value = '';
+    }
   }
   e.stopPropagation();
 });
