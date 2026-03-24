@@ -88,7 +88,7 @@ const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
   }
   projectiles.length = 0;
   explosions.length = 0;
-}, () => input.clear());
+}, () => input.clear(), () => !networkMode || net.localId === 0);
 appendOutput = editorAPI.appendOutput;
 
 window.addEventListener('resize', () => {

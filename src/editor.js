@@ -42,7 +42,7 @@ end
 print("Orbiting...")`,
 };
 
-export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn, clearInputFn) {
+export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn, clearInputFn, canOpenEditor = () => true) {
   let editorOpen = false;
   let lastEditorFocus = null;
 
@@ -74,7 +74,7 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
   window.addEventListener('keydown', e => {
     if (e.code === 'Backquote') {
       e.preventDefault();
-      toggleEditor();
+      if (editorOpen || canOpenEditor()) toggleEditor();
     }
     if (e.code === 'Escape' && editorOpen) {
       e.preventDefault();
@@ -93,8 +93,8 @@ export function createEditor({ editor, scriptArea, outputDiv, hintDiv, replInput
         replInput.focus();
         lastEditorFocus = replInput;
       } else if (e.code === 'ArrowRight') {
-        if (!editorOpen) toggleEditor();
-        else (lastEditorFocus || replInput).focus();
+        if (!editorOpen && canOpenEditor()) toggleEditor();
+        else if (editorOpen) (lastEditorFocus || replInput).focus();
       } else if (e.code === 'ArrowLeft') {
         document.activeElement.blur();
         if (editorOpen) toggleEditor();
