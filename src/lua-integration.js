@@ -59,7 +59,12 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
 
   function broadcastShipUpdates() {
     if (onShipUpdate) {
-      onShipUpdate(ships.map(s => ({ id: s.id, color: s.color })));
+      onShipUpdate(ships.map(s => ({
+        id: s.id, color: s.color, radius: s.radius,
+        thrust: s.thrust, turnSpeed: s.turnSpeed,
+        friction: s.friction, fireCooldown: s.fireCooldown,
+        showName: s.showName,
+      })));
     }
   }
 

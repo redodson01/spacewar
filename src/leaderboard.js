@@ -9,6 +9,11 @@ export function createLeaderboard() {
     entries.delete(id);
   }
 
+  function updateColor(id, color) {
+    const entry = entries.get(id);
+    if (entry) entry.color = color;
+  }
+
   function clear() {
     entries.clear();
   }
@@ -69,5 +74,5 @@ export function createLeaderboard() {
     ctx.shadowBlur = 0;
   }
 
-  return { addPlayer, removePlayer, clear, recordKill, recordCollision, setScores, getScores, draw };
+  return { addPlayer, removePlayer, updateColor, clear, recordKill, recordCollision, setScores, getScores, draw };
 }

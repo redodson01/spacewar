@@ -175,12 +175,21 @@ net.onRespawn((id, x, y) => {
 net.onLuaUpdate((updates) => {
   for (const u of updates) {
     const ship = ships.find(s => s.id === u.id);
-    if (ship) ship.color = u.color;
+    if (!ship) continue;
+    ship.color = u.color;
+    ship.radius = u.radius;
+    ship.thrust = u.thrust;
+    ship.turnSpeed = u.turnSpeed;
+    ship.friction = u.friction;
+    ship.fireCooldown = u.fireCooldown;
+    ship.showName = u.showName;
+    leaderboard.updateColor(u.id, u.color);
   }
 });
 
-// Broadcast Lua ship changes over network
+// Broadcast Lua ship changes over network, and sync leaderboard colors locally
 luaCtx.setOnShipUpdate((updates) => {
+  for (const u of updates) leaderboard.updateColor(u.id, u.color);
   if (networkMode) net.sendLuaUpdate(updates);
 });
 
