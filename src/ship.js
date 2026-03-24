@@ -94,4 +94,11 @@ export function drawShip(ctx, ship) {
   }
 
   ctx.shadowBlur = 0;
+
+  if (ship.name) {
+    ctx.fillStyle = color;
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(ship.name, x, y - radius - 10);
+  }
 }

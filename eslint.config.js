@@ -15,6 +15,7 @@ export default [
         performance: 'readonly',
         console: 'readonly',
         WebSocket: 'readonly',
+        prompt: 'readonly',
       },
     },
     rules: {
@@ -56,6 +57,7 @@ export default [
       globals: {
         process: 'readonly',
         console: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: {

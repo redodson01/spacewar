@@ -93,10 +93,11 @@ window.addEventListener('resize', () => {
 
 // --- Networking callbacks ---
 
-net.onJoin((id, _color) => {
+net.onJoin((id, _color, name) => {
   if (ships.find(s => s.id === id)) return;
   const ship = makeShip(id);
   ship.isLocal = false;
+  ship.name = name;
   ships.push(ship);
   luaCtx.reset();
 });
@@ -162,7 +163,8 @@ net.onRespawn((id, x, y) => {
 });
 
 // Try to connect — if it works, switch to network mode
-net.connect().then((welcome) => {
+const playerName = prompt('Enter your name:');
+net.connect(playerName || 'Player').then((welcome) => {
   if (!welcome) return;
 
   networkMode = true;
@@ -174,11 +176,13 @@ net.connect().then((welcome) => {
 
   const localShip = makeShip(welcome.id);
   localShip.isLocal = true;
+  localShip.name = welcome.name;
   ships.push(localShip);
 
   for (const p of welcome.players) {
     const ship = makeShip(p.id);
     ship.isLocal = false;
+    ship.name = p.name;
     ships.push(ship);
   }
 

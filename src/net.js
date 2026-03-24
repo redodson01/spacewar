@@ -15,9 +15,9 @@ export function createNetClient() {
     respawn: null,
   };
 
-  function connect() {
+  function connect(name) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}`;
+    const url = `${protocol}//${window.location.host}?name=${encodeURIComponent(name || '')}`;
 
     return new Promise((resolve) => {
       try {
@@ -45,10 +45,10 @@ export function createNetClient() {
             localId = msg.id;
             connected = true;
             clearTimeout(timeout);
-            resolve({ id: msg.id, color: msg.color, players: msg.players });
+            resolve({ id: msg.id, color: msg.color, name: msg.name, players: msg.players });
             break;
           case 'join':
-            if (callbacks.join) callbacks.join(msg.id, msg.color);
+            if (callbacks.join) callbacks.join(msg.id, msg.color, msg.name);
             break;
           case 'leave':
             if (callbacks.leave) callbacks.leave(msg.id);

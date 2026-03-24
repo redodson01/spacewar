@@ -22,7 +22,7 @@ const COLORS = ['#f00', '#0f0', '#00f', '#ff0'];
 const MAX_PLAYERS = 4;
 
 // Player management
-const players = new Map(); // ws -> { id, color }
+const players = new Map(); // ws -> { id, color, name }
 
 function nextId() {
   for (let i = 0; i < MAX_PLAYERS; i++) {
@@ -68,15 +68,17 @@ const server = createServer(async (req, res) => {
 // WebSocket server
 const wss = new WebSocketServer({ server });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   const id = nextId();
   if (id === -1) {
     ws.close(4000, 'Game is full');
     return;
   }
 
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const name = url.searchParams.get('name') || `Player ${id + 1}`;
   const color = COLORS[id];
-  players.set(ws, { id, color });
+  players.set(ws, { id, color, name });
 
   // Send welcome to the new player
   const existingPlayers = [...players.values()].filter(p => p.id !== id);
@@ -84,11 +86,12 @@ wss.on('connection', (ws) => {
     type: 'welcome',
     id,
     color,
+    name,
     players: existingPlayers,
   }));
 
   // Announce to others
-  broadcast(ws, { type: 'join', id, color });
+  broadcast(ws, { type: 'join', id, color, name });
 
   ws.on('message', (data) => {
     // Relay verbatim to all other clients
