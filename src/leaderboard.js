@@ -9,6 +9,10 @@ export function createLeaderboard() {
     entries.delete(id);
   }
 
+  function clear() {
+    entries.clear();
+  }
+
   function recordKill(killerId) {
     const entry = entries.get(killerId);
     if (entry) entry.score += 1;
@@ -49,5 +53,5 @@ export function createLeaderboard() {
     }
   }
 
-  return { addPlayer, removePlayer, recordKill, recordCollision, getScores, draw };
+  return { addPlayer, removePlayer, clear, recordKill, recordCollision, getScores, draw };
 }

@@ -177,10 +177,11 @@ net.connect(playerName || 'Player').then((welcome) => {
 
   networkMode = true;
 
-  // Rebuild ships: local ship first, then existing remote players
+  // Rebuild ships and leaderboard for network mode
   ships.length = 0;
   projectiles.length = 0;
   explosions.length = 0;
+  leaderboard.clear();
 
   const localShip = makeShip(welcome.id);
   localShip.isLocal = true;
