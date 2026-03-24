@@ -128,6 +128,12 @@ wss.on('connection', (ws, req) => {
       if (msg.type === 'luaUpdate') {
         lastLuaUpdate = msg.updates;
       }
+      if (msg.type === 'nameChange') {
+        const player = players.get(ws);
+        if (player && msg.playerId === player.id) {
+          player.name = msg.newName;
+        }
+      }
       if (msg.type === 'death') {
         if (msg.cause === 'projectile' && msg.killerId != null && scores.has(msg.killerId)) {
           scores.set(msg.killerId, scores.get(msg.killerId) + 1);
