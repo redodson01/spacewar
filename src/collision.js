@@ -9,6 +9,7 @@ export function checkShipShipCollision(shipA, shipB) {
 export function checkShipProjectileCollision(ship, projectiles) {
   for (let i = 0; i < projectiles.length; i++) {
     const p = projectiles[i];
+    if (p.ownerId === ship.id) continue; // no self-fire
     const dx = ship.x - p.x;
     const dy = ship.y - p.y;
     const dist = Math.sqrt(dx * dx + dy * dy);

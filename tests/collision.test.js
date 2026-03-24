@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { checkShipShipCollision, checkShipProjectileCollision } from '../src/collision.js';
 
-function makeShip(x = 400, y = 300, radius = 20) {
-  return { x, y, radius, destroyed: false };
+function makeShip(x = 400, y = 300, radius = 20, id = 0) {
+  return { id, x, y, radius, destroyed: false };
 }
 
-function makeProjectile(x, y, radius = 4) {
-  return { x, y, radius, vx: 0, vy: 0, age: 0, lifetime: 2, color: '#ff0' };
+function makeProjectile(x, y, radius = 4, ownerId = 99) {
+  return { x, y, radius, vx: 0, vy: 0, age: 0, lifetime: 2, color: '#ff0', ownerId };
 }
 
 describe('checkShipShipCollision', () => {
@@ -80,5 +80,17 @@ describe('checkShipProjectileCollision', () => {
     // distance = 20, combined radii = 15 + 4 = 19 → miss
     const projectiles = [makeProjectile(420, 300, 4)];
     expect(checkShipProjectileCollision(ship, projectiles)).toBe(-1);
+  });
+
+  it('ignores projectiles owned by the ship (no self-fire)', () => {
+    const ship = makeShip(400, 300, 15, 0);
+    const projectiles = [makeProjectile(410, 300, 4, 0)]; // same owner
+    expect(checkShipProjectileCollision(ship, projectiles)).toBe(-1);
+  });
+
+  it('hits with projectiles from other ships', () => {
+    const ship = makeShip(400, 300, 15, 0);
+    const projectiles = [makeProjectile(410, 300, 4, 1)]; // different owner
+    expect(checkShipProjectileCollision(ship, projectiles)).toBe(0);
   });
 });
