@@ -18,7 +18,7 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
 };
 
-const COLORS = ['#f00', '#0f0', '#00f', '#ff0'];
+const COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900'];
 const MAX_PLAYERS = 4;
 
 // Player management

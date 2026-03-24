@@ -189,7 +189,7 @@ net.connect(playerName || 'Player').then((welcome) => {
   ships.push(localShip);
 
   for (const p of welcome.players) {
-    const ship = makeShip(p.id);
+    const ship = makeShip(p.id); // makeShip uses PLAYER_COLORS[id]
     ship.isLocal = false;
     ship.name = p.name;
     ships.push(ship);
@@ -197,7 +197,7 @@ net.connect(playerName || 'Player').then((welcome) => {
 
   leaderboard.addPlayer(welcome.id, welcome.name, PLAYER_COLORS[welcome.id]);
   for (const p of welcome.players) {
-    leaderboard.addPlayer(p.id, p.name, p.color);
+    leaderboard.addPlayer(p.id, p.name, PLAYER_COLORS[p.id]);
   }
 
   luaCtx.reset();
