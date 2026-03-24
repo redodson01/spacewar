@@ -53,9 +53,13 @@ function initLocalMode() {
   }
 }
 
-initLocalMode();
-// Show hints after a short delay so they don't get cleared by network connect
-setTimeout(() => { if (!networkMode) showHelpInChat(); }, 2500);
+function startGame() {
+  if (!networkMode) {
+    initLocalMode();
+    showHelpInChat();
+  }
+  requestAnimationFrame(gameLoop);
+}
 
 // Editor DOM elements
 const elements = {
@@ -311,7 +315,10 @@ luaCtx.setOnShipUpdate((updates) => {
 
 // Try to connect — if it works, switch to network mode
 net.connect().then((welcome) => {
-  if (!welcome) return;
+  if (!welcome) {
+    startGame();
+    return;
+  }
 
   // Resolve player name: check per-slot storage, then prompt
   const savedSlotName = loadName(welcome.id);
@@ -376,6 +383,7 @@ net.connect().then((welcome) => {
 
   luaCtx.reset();
   showHelpInChat();
+  startGame();
 });
 
 // Rendering transform: map world coordinates to canvas
@@ -488,5 +496,3 @@ function gameLoop(time) {
 
   requestAnimationFrame(gameLoop);
 }
-
-requestAnimationFrame(gameLoop);
