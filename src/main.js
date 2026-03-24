@@ -452,7 +452,7 @@ function gameLoop(time) {
         projectiles.splice(hitIdx, 1);
         destroyShip(ship);
         if (networkMode) {
-          net.sendDeath(ship, killerId, 'projectile');
+          if (ship.isLocal) net.sendDeath(ship, killerId, 'projectile');
         } else {
           leaderboard.recordKill(killerId);
         }
@@ -470,8 +470,8 @@ function gameLoop(time) {
         destroyShip(si);
         destroyShip(sj);
         if (networkMode) {
-          net.sendDeath(si, null, 'collision');
-          net.sendDeath(sj, null, 'collision');
+          if (si.isLocal) net.sendDeath(si, null, 'collision');
+          if (sj.isLocal) net.sendDeath(sj, null, 'collision');
         } else {
           leaderboard.recordCollision(si.id, sj.id);
         }
