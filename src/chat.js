@@ -28,7 +28,7 @@ export function createChat() {
     ctx.font = '16px monospace';
     ctx.textAlign = 'left';
 
-    let y = worldHeight - 30;
+    let y = worldHeight - 10;
 
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
