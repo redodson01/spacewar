@@ -370,6 +370,10 @@ luaCtx.setOnAIRemove((id) => {
   }
 });
 
+luaCtx.setGameSpeedAccessors(() => gameSpeed, (v) => { gameSpeed = v; });
+
+net.onGameSpeed((speed) => { gameSpeed = speed; });
+
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
 luaCtx.setOnShipUpdate((updates) => {
   for (const u of updates) leaderboard.updateColor(u.id, u.color);
@@ -476,9 +480,12 @@ function drawWorldBorder() {
 // Game loop
 let lastTime = 0;
 
+let gameSpeed = 1.0;
+
 function gameLoop(time) {
-  const dt = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
+  const rawDt = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
   lastTime = time;
+  const dt = rawDt * gameSpeed;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 

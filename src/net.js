@@ -17,6 +17,7 @@ export function createNetClient() {
     luaUpdate: null,
     chat: null,
     nameChange: null,
+    gameSpeed: null,
   };
 
   function connect() {
@@ -83,6 +84,9 @@ export function createNetClient() {
             break;
           case 'stateOverride':
             if (callbacks.stateOverride) callbacks.stateOverride(msg.targetId, msg);
+            break;
+          case 'gameSpeed':
+            if (callbacks.gameSpeed) callbacks.gameSpeed(msg.speed);
             break;
         }
       };
@@ -195,6 +199,7 @@ export function createNetClient() {
     onChat(cb) { callbacks.chat = cb; },
     onNameChange(cb) { callbacks.nameChange = cb; },
     onStateOverride(cb) { callbacks.stateOverride = cb; },
+    onGameSpeed(cb) { callbacks.gameSpeed = cb; },
   };
 }
 

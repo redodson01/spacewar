@@ -91,6 +91,8 @@ function broadcastScores() {
 }
 
 // --- Server Lua context ---
+let serverGameSpeed = 1.0;
+
 const serverLua = createServerLua(ships, {
   onStateWrite(id, prop, value) {
     // Broadcast state override to all clients
@@ -125,6 +127,11 @@ const serverLua = createServerLua(ships, {
   onNameChange(id, newName) {
     broadcastAll({ type: 'nameChange', playerId: id, newName });
   },
+  onGetSpeed() { return serverGameSpeed; },
+  onSetSpeed(speed) {
+    serverGameSpeed = speed;
+    broadcastAll({ type: 'gameSpeed', speed });
+  },
 });
 
 serverLua.exposeScreen(WORLD_WIDTH, WORLD_HEIGHT);
@@ -141,7 +148,7 @@ function isServerAI(ship) {
 let lastTickTime = Date.now();
 setInterval(() => {
   const now = Date.now();
-  const dt = Math.min((now - lastTickTime) / 1000, 0.05);
+  const dt = Math.min((now - lastTickTime) / 1000, 0.05) * serverGameSpeed;
   lastTickTime = now;
 
   // Update server AI ships (same logic as client game loop)

@@ -28,6 +28,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   let onNameChange = null;
   let onAIAdd = null;
   let onAIRemove = null;
+  let getGameSpeed = () => 1.0;
+  let setGameSpeed = () => {};
 
   if (!fengari) {
     return {
@@ -41,6 +43,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       setOnNameChange(cb) { onNameChange = cb; },
       setOnAIAdd(cb) { onAIAdd = cb; },
       setOnAIRemove(cb) { onAIRemove = cb; },
+      setGameSpeedAccessors(getter, setter) { getGameSpeed = getter; setGameSpeed = setter; },
       broadcastShipUpdates() {},
     };
   }
@@ -210,6 +213,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     setOnNameChange(cb) { onNameChange = cb; },
     setOnAIAdd(cb) { onAIAdd = cb; },
     setOnAIRemove(cb) { onAIRemove = cb; },
+    setGameSpeedAccessors(getter, setter) { getGameSpeed = getter; setGameSpeed = setter; },
     broadcastShipUpdates,
   };
 
@@ -297,6 +301,19 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   });
   lua.lua_setglobal(L, LUA_REMOVE_AI);
 
+  lua.lua_pushcfunction(L, function (L) {
+    if (lua.lua_gettop(L) >= 1) {
+      const speed = lua.lua_tonumber(L, 1);
+      setGameSpeed(speed);
+      appendOutput(`Game speed set to ${speed}x.`);
+    } else {
+      lua.lua_pushnumber(L, getGameSpeed());
+      return 1;
+    }
+    return 0;
+  });
+  lua.lua_setglobal(L, toLua("speed"));
+
   const LUA_HELP = toLua("help");
   lua.lua_pushcfunction(L, function () {
     appendOutput([
@@ -333,6 +350,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       '  addAI()           Add an AI opponent (returns ship number)',
       '  removeAI(n)       Remove AI player n',
       '  setName(n, name)  Rename player n — e.g. setName(1, "Alice")',
+      '  speed()           Get current game speed multiplier',
+      '  speed(n)          Set game speed (1=normal, 2=double, 0.5=half)',
       '  print(...)        Output to this console',
       '  help()            Show this reference',
       '',

@@ -157,6 +157,21 @@ export function createServerLua(ships, callbacks) {
   });
   lua.lua_setglobal(L, toLua("setName"));
 
+  // speed
+  lua.lua_pushcfunction(L, function (L) {
+    if (lua.lua_gettop(L) >= 1) {
+      const speed = lua.lua_tonumber(L, 1);
+      if (callbacks.onSetSpeed) callbacks.onSetSpeed(speed);
+      output.push(`Game speed set to ${speed}x.`);
+    } else {
+      const speed = callbacks.onGetSpeed ? callbacks.onGetSpeed() : 1.0;
+      lua.lua_pushnumber(L, speed);
+      return 1;
+    }
+    return 0;
+  });
+  lua.lua_setglobal(L, toLua("speed"));
+
   // help
   lua.lua_pushcfunction(L, function () {
     output.push([
@@ -179,6 +194,8 @@ export function createServerLua(ships, callbacks) {
       '  addAI()              Add an AI opponent',
       '  removeAI(n)          Remove AI player n',
       '  setName(n, name)     Rename player n',
+      '  speed()              Get game speed multiplier',
+      '  speed(n)             Set game speed (1=normal, 2=double, 0.5=half)',
       '  print(...)           Output to this console',
       '  help()               Show this reference',
     ].join('\n'));
