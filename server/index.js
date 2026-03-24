@@ -334,7 +334,10 @@ wss.on('connection', (ws, req) => {
             y: msg.y + Math.sin(msg.angle) * (s.config?.radius || 20),
             vx: msg.vx + Math.cos(msg.angle) * PROJECTILE_DEFAULTS.speed,
             vy: msg.vy + Math.sin(msg.angle) * PROJECTILE_DEFAULTS.speed,
-            age: 0, ownerId: msg.id,
+            age: 0,
+            lifetime: PROJECTILE_DEFAULTS.lifetime,
+            radius: PROJECTILE_DEFAULTS.radius,
+            ownerId: msg.id,
           });
         }
       }
