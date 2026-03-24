@@ -160,6 +160,8 @@ export function createNetClient() {
 }
 
 // Interpolation helper for remote ships
+import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
+
 export function createInterpolator() {
   const states = new Map(); // id -> { prev, next, t }
 
@@ -181,9 +183,8 @@ export function createInterpolator() {
     entry.t = Math.min(1, entry.t + dt / 0.05); // 0.05s = 20Hz window
     const { prev, next, t } = entry;
 
-    // Handle wrapping: if delta > half world, snap instead of lerp
-    ship.x = lerp(prev.x, next.x, t);
-    ship.y = lerp(prev.y, next.y, t);
+    ship.x = lerpWrap(prev.x, next.x, t, WORLD_WIDTH);
+    ship.y = lerpWrap(prev.y, next.y, t, WORLD_HEIGHT);
     ship.angle = lerpAngle(prev.angle, next.angle, t);
     ship.vx = lerp(prev.vx, next.vx, t);
     ship.vy = lerp(prev.vy, next.vy, t);
@@ -200,6 +201,15 @@ export function createInterpolator() {
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
+}
+
+function lerpWrap(a, b, t, worldSize) {
+  let diff = b - a;
+  if (Math.abs(diff) > worldSize / 2) {
+    // Wrapping — snap to avoid sweeping across the world
+    return b;
+  }
+  return a + diff * t;
 }
 
 function lerpAngle(a, b, t) {

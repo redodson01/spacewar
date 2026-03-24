@@ -149,6 +149,7 @@ net.onDeath((id, x, y, color) => {
   if (ship && !ship.destroyed) {
     spawnExplosion(explosions, x, y, color);
     destroyShip(ship);
+    interpolator.remove(id);
   }
 });
 
@@ -156,6 +157,7 @@ net.onRespawn((id, x, y) => {
   const ship = ships.find(s => s.id === id);
   if (ship) {
     resetShip(ship, x, y);
+    interpolator.remove(id);
   }
 });
 
