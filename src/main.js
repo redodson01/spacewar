@@ -7,6 +7,7 @@ import { checkShipProjectileCollision, checkShipShipCollision } from './collisio
 import { createLuaContext } from './lua-integration.js';
 import { createEditor } from './editor.js';
 import { WORLD_WIDTH, WORLD_HEIGHT, PLAYER_COLORS, SPAWN_POSITIONS, setWorldSize } from './world.js';
+import { getAIActions } from './ai.js';
 import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
@@ -449,7 +450,9 @@ function gameLoop(time) {
 
     if (ship.isLocal) {
       let actions;
-      if (networkMode) {
+      if (ship.isAI) {
+        actions = getAIActions(ship, ships, projectiles, WORLD_WIDTH, WORLD_HEIGHT);
+      } else if (networkMode) {
         actions = getNetworkActions(input.keys);
       } else {
         actions = getActions(input.keys, PLAYER_BINDINGS[ship.controlBinding || 0]);
