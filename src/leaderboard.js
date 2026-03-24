@@ -40,7 +40,11 @@ export function createLeaderboard() {
 
     for (const entry of scores) {
       ctx.fillStyle = entry.color;
-      ctx.fillText(`${entry.score}  ${entry.name}`, x, y);
+      const scoreStr = String(entry.score).padStart(4, ' ');
+      ctx.textAlign = 'right';
+      ctx.fillText(scoreStr, x + 40, y);
+      ctx.textAlign = 'left';
+      ctx.fillText(`  ${entry.name}`, x + 40, y);
       y += 18;
     }
   }

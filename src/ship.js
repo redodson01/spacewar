@@ -12,6 +12,7 @@ export const SHIP_DEFAULTS = {
   destroyed: false,
   respawnTimer: 0,
   thrusting: false,
+  showName: false,
 };
 
 export function createShip(id, x, y, color = SHIP_DEFAULTS.color) {
@@ -95,7 +96,7 @@ export function drawShip(ctx, ship) {
 
   ctx.shadowBlur = 0;
 
-  if (ship.name) {
+  if (ship.name && ship.showName) {
     ctx.fillStyle = color;
     ctx.font = '14px monospace';
     ctx.textAlign = 'center';
