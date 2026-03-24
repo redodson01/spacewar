@@ -14,6 +14,8 @@ export default [
         localStorage: 'readonly',
         performance: 'readonly',
         console: 'readonly',
+        WebSocket: 'readonly',
+        prompt: 'readonly',
       },
     },
     rules: {
@@ -39,6 +41,23 @@ export default [
         document: 'readonly',
         KeyboardEvent: 'readonly',
         Event: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-undef': 'error',
+      semi: ['error', 'always'],
+    },
+  },
+  {
+    files: ['server/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: {

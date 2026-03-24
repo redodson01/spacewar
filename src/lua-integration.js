@@ -1,6 +1,31 @@
 import { fireProjectile } from './projectiles.js';
+import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
+import { CONFIG_DEFAULTS, STATE_DEFAULTS } from './ship.js';
+
+// Create a flat proxy over a structured ship so Lua scripts can use
+// ship.color (maps to ship.config.color), ship.x (maps to ship.state.x), etc.
+const CONFIG_KEYS = new Set(Object.keys(CONFIG_DEFAULTS));
+const STATE_KEYS = new Set(Object.keys(STATE_DEFAULTS));
+
+function createShipProxy(ship) {
+  return new Proxy(ship, {
+    get(target, prop) {
+      if (CONFIG_KEYS.has(prop)) return target.config[prop];
+      if (STATE_KEYS.has(prop)) return target.state[prop];
+      return target[prop];
+    },
+    set(target, prop, value) {
+      if (CONFIG_KEYS.has(prop)) { target.config[prop] = value; return true; }
+      if (STATE_KEYS.has(prop)) { target.state[prop] = value; return true; }
+      target[prop] = value;
+      return true;
+    },
+  });
+}
 
 export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
+  let onShipUpdate = null;
+
   if (!fengari) {
     return {
       isReady: false,
@@ -8,8 +33,9 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       runLua(_code) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       runLuaREPL(_line) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       callLuaUpdate(_dt) {},
-      updateScreen() {},
       reset() {},
+      setOnShipUpdate(cb) { onShipUpdate = cb; },
+      broadcastShipUpdates() {},
     };
   }
 
@@ -22,30 +48,50 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
 
   const L = lauxlib.luaL_newstate();
   lualib.luaL_openlibs(L);
-  // Pre-cache frequently used Lua strings to avoid allocations in hot paths
   const LUA_ON_UPDATE = toLua("onUpdate");
   const LUA_SHIP = toLua("ship");
-  const LUA_SHIP1 = toLua("ship1");
-  const LUA_SHIP2 = toLua("ship2");
+  const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4")];
   const LUA_PRINT = toLua("print");
   const LUA_SHOOT = toLua("shoot");
   const LUA_PROJECTILES = toLua("projectiles");
 
-  // NOTE: luaopen_js gives Lua scripts access to JS globals via the js interop
-  // module. This is acceptable for local single-player scripting but must be
-  // restricted before running untrusted scripts (e.g., multiplayer).
   lauxlib.luaL_requiref(L, toLua("js"), interop.luaopen_js, 1);
   lua.lua_pop(L, 1);
 
   function exposeShips() {
-    interop.push(L, ships[0]);
+    // ship = local player (always ships[0] in the array)
+    interop.push(L, createShipProxy(ships[0]));
     lua.lua_setglobal(L, LUA_SHIP);
-    interop.push(L, ships[0]);
-    lua.lua_setglobal(L, LUA_SHIP1);
-    if (ships.length > 1) {
-      interop.push(L, ships[1]);
-      lua.lua_setglobal(L, LUA_SHIP2);
+    // Clear all numbered globals first
+    for (const g of LUA_SHIP_GLOBALS) {
+      lua.lua_pushnil(L);
+      lua.lua_setglobal(L, g);
     }
+    // Set present ships by their ID
+    for (const s of ships) {
+      if (s.id >= 0 && s.id < 4) {
+        interop.push(L, createShipProxy(s));
+        lua.lua_setglobal(L, LUA_SHIP_GLOBALS[s.id]);
+      }
+    }
+  }
+
+  let lastConfigSnapshot = '';
+  let lastBroadcastTime = 0;
+  const BROADCAST_INTERVAL = 50; // 20Hz
+
+  function broadcastShipUpdates(throttle = false) {
+    if (!onShipUpdate) return;
+    const updates = ships.map(s => ({ id: s.id, ...s.config }));
+    if (throttle) {
+      const snapshot = JSON.stringify(updates);
+      if (snapshot === lastConfigSnapshot) return;
+      const now = performance.now();
+      if (now - lastBroadcastTime < BROADCAST_INTERVAL) return;
+      lastConfigSnapshot = snapshot;
+      lastBroadcastTime = now;
+    }
+    onShipUpdate(updates);
   }
 
   const ctx = {
@@ -58,7 +104,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       ctx.hasOnUpdate = false;
 
       lauxlib.luaL_dostring(L, toLua(
-        `screen = { width = ${canvas.width}, height = ${canvas.height} }`
+        `screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`
       ));
 
       exposeShips();
@@ -78,6 +124,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_pop(L, 1);
 
       appendOutput('Script executed.');
+      broadcastShipUpdates();
     },
 
     runLuaREPL(line) {
@@ -123,12 +170,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_getglobal(L, LUA_ON_UPDATE);
       ctx.hasOnUpdate = lua.lua_isfunction(L, -1);
       lua.lua_pop(L, 1);
-    },
-
-    updateScreen() {
-      lauxlib.luaL_dostring(L, toLua(
-        `screen = { width = ${canvas.width}, height = ${canvas.height} }`
-      ));
+      broadcastShipUpdates();
     },
 
     callLuaUpdate(dt) {
@@ -143,6 +185,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         appendOutput('onUpdate error: ' + err, true);
         ctx.hasOnUpdate = false;
       }
+      broadcastShipUpdates(true); // throttled — only sends if config changed
     },
 
     reset() {
@@ -155,13 +198,16 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_setglobal(L, LUA_PROJECTILES);
       explosions.length = 0;
     },
+
+    setOnShipUpdate(cb) { onShipUpdate = cb; },
+    broadcastShipUpdates,
   };
 
   // Initial API exposure
   exposeShips();
 
   lauxlib.luaL_dostring(L, toLua(
-    `screen = { width = ${canvas.width}, height = ${canvas.height} }`
+    `screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`
   ));
 
   lua.lua_pushcfunction(L, function (L) {
@@ -181,10 +227,54 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   lua.lua_setglobal(L, LUA_PROJECTILES);
 
   lua.lua_pushcfunction(L, function () {
-    if (!ships[0].destroyed) fireProjectile(projectiles, ships[0]);
+    if (!ships[0].state.destroyed) fireProjectile(projectiles, ships[0]);
     return 0;
   });
   lua.lua_setglobal(L, LUA_SHOOT);
+
+  const LUA_HELP = toLua("help");
+  lua.lua_pushcfunction(L, function () {
+    appendOutput([
+      '=== Spacewar Lua API ===',
+      '',
+      'GLOBALS',
+      '  ship / ship1      Player 1\'s ship (alias)',
+      '  ship2 - ship4     Other players\' ships (nil if absent)',
+      '  projectiles       Array of active projectiles',
+      '  screen.width      World width (1920)',
+      '  screen.height     World height (1080)',
+      '',
+      'SHIP CONFIG (persists across respawn)',
+      '  ship.color             CSS color string',
+      '  ship.radius            Ship size (default 20)',
+      '  ship.thrust            Acceleration per frame (default 0.15)',
+      '  ship.turnSpeed         Rotation per frame (default 0.05)',
+      '  ship.friction          Velocity decay 0-1 (default 0.995)',
+      '  ship.fireCooldown      Seconds between shots (default 0.25)',
+      '  ship.showName          Show name above ship (default false)',
+      '  ship.controlScheme     0=WASD, 1=arrows (default 0)',
+      '  ship.explosionParticles  Particle count (default 25)',
+      '',
+      'SHIP STATE (resets on respawn)',
+      '  ship.x, ship.y         Position',
+      '  ship.angle              Facing angle in radians',
+      '  ship.vx, ship.vy       Velocity',
+      '  ship.destroyed          Whether ship is dead',
+      '  ship.respawnTimer       Seconds until respawn',
+      '  ship.invulnerableTimer  Seconds of invulnerability',
+      '  ship.thrusting          Whether thrust is active',
+      '',
+      'FUNCTIONS',
+      '  shoot()           Fire a projectile from your ship',
+      '  print(...)        Output to this console',
+      '  help()            Show this reference',
+      '',
+      'CALLBACKS',
+      '  function onUpdate(dt)   Called every frame (dt in seconds)',
+    ].join('\n'));
+    return 0;
+  });
+  lua.lua_setglobal(L, LUA_HELP);
 
   return ctx;
 }

@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
 
 function makeShip() {
-  return { id: 0, x: 400, y: 300, angle: 0, vx: 0, vy: 0, radius: 20, fireCooldown: 0.25, fireCooldownTimer: 0, color: '#0ff' };
+  return {
+    id: 0,
+    config: { radius: 20, fireCooldown: 0.25, color: '#0ff' },
+    state: { x: 400, y: 300, angle: 0, vx: 0, vy: 0, fireCooldownTimer: 0 },
+  };
 }
 
 describe('createProjectiles', () => {
@@ -21,17 +25,17 @@ describe('fireProjectile', () => {
   });
 
   it('spawns a projectile at the ship nose', () => {
-    ship.angle = 0;
+    ship.state.angle = 0;
     fireProjectile(projectiles, ship);
     expect(projectiles).toHaveLength(1);
-    expect(projectiles[0].x).toBeCloseTo(ship.x + ship.radius);
-    expect(projectiles[0].y).toBeCloseTo(ship.y);
+    expect(projectiles[0].x).toBeCloseTo(ship.state.x + ship.config.radius);
+    expect(projectiles[0].y).toBeCloseTo(ship.state.y);
   });
 
   it('sets projectile velocity from ship angle and speed', () => {
-    ship.angle = 0;
-    ship.vx = 1;
-    ship.vy = 0;
+    ship.state.angle = 0;
+    ship.state.vx = 1;
+    ship.state.vy = 0;
     fireProjectile(projectiles, ship);
     expect(projectiles[0].vx).toBeCloseTo(1 + PROJECTILE_DEFAULTS.speed);
     expect(projectiles[0].vy).toBeCloseTo(0);
@@ -43,14 +47,14 @@ describe('fireProjectile', () => {
   });
 
   it('uses ship color for projectile', () => {
-    ship.color = '#f0f';
+    ship.config.color = '#f0f';
     fireProjectile(projectiles, ship);
     expect(projectiles[0].color).toBe('#f0f');
   });
 
   it('resets the ship fire cooldown timer', () => {
     fireProjectile(projectiles, ship);
-    expect(ship.fireCooldownTimer).toBe(ship.fireCooldown);
+    expect(ship.state.fireCooldownTimer).toBe(ship.config.fireCooldown);
   });
 
   it('returns true on successful fire', () => {
@@ -58,12 +62,12 @@ describe('fireProjectile', () => {
   });
 
   it('returns false when on cooldown', () => {
-    ship.fireCooldownTimer = 0.1;
+    ship.state.fireCooldownTimer = 0.1;
     expect(fireProjectile(projectiles, ship)).toBe(false);
   });
 
   it('does not add a projectile when on cooldown', () => {
-    ship.fireCooldownTimer = 0.1;
+    ship.state.fireCooldownTimer = 0.1;
     fireProjectile(projectiles, ship);
     expect(projectiles).toHaveLength(0);
   });
@@ -72,16 +76,16 @@ describe('fireProjectile', () => {
 describe('tickFireCooldown', () => {
   it('decrements the timer by dt', () => {
     const ship = makeShip();
-    ship.fireCooldownTimer = 0.25;
+    ship.state.fireCooldownTimer = 0.25;
     tickFireCooldown(ship, 0.1);
-    expect(ship.fireCooldownTimer).toBeCloseTo(0.15);
+    expect(ship.state.fireCooldownTimer).toBeCloseTo(0.15);
   });
 
   it('does not go below zero', () => {
     const ship = makeShip();
-    ship.fireCooldownTimer = 0.05;
+    ship.state.fireCooldownTimer = 0.05;
     tickFireCooldown(ship, 0.1);
-    expect(ship.fireCooldownTimer).toBe(0);
+    expect(ship.state.fireCooldownTimer).toBe(0);
   });
 });
 

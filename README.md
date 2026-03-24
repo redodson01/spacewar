@@ -51,25 +51,30 @@ Press backtick to open the editor. A single-line REPL is at the bottom for quick
 
 ### API
 
+Type `help()` in the REPL for the full reference. Summary:
+
 | Global | Description |
 |---|---|
-| `ship` / `ship1` | Player 1's ship (alias) |
-| `ship2` | Player 2's ship |
+| `ship` / `ship1` | Player 1's ship (alias for ship1) |
+| `ship2` – `ship4` | Other players' ships (nil if not present) |
 | `ship.color` | Ship color (CSS color string) |
-| `ship.thrust` | Acceleration per frame |
-| `ship.turnSpeed` | Rotation speed per frame |
-| `ship.friction` | Velocity multiplier per frame (0-1) |
-| `ship.radius` | Ship triangle size |
+| `ship.thrust` | Acceleration per frame (default 0.15) |
+| `ship.turnSpeed` | Rotation per frame (default 0.05) |
+| `ship.friction` | Velocity decay 0-1 (default 0.995) |
+| `ship.radius` | Ship size (default 20) |
+| `ship.fireCooldown` | Seconds between shots (default 0.25) |
+| `ship.showName` | Show name above ship (default false) |
+| `ship.controlScheme` | 0=WASD, 1=arrows (default 0) |
+| `ship.explosionParticles` | Particle count on death (default 25) |
 | `ship.x`, `ship.y` | Position (read/write) |
 | `ship.angle` | Facing angle in radians |
 | `ship.vx`, `ship.vy` | Velocity (read/write) |
-| `ship.fireCooldown` | Seconds between shots |
-| `ship.destroyed` | Whether the ship is currently destroyed (read-only) |
-| `ship.respawnTimer` | Seconds until respawn (read-only) |
-| `screen.width`, `screen.height` | Canvas dimensions |
+| `ship.destroyed` | Whether the ship is currently destroyed |
+| `screen.width`, `screen.height` | World dimensions (1920×1080) |
 | `projectiles` | Array of active projectiles |
-| `shoot()` | Fire a projectile from the ship |
+| `shoot()` | Fire a projectile from your ship |
 | `print(...)` | Output to the editor console |
+| `help()` | Print full API reference |
 | `function onUpdate(dt) ... end` | Per-frame callback (dt in seconds) |
 
 ### Examples
@@ -102,14 +107,22 @@ src/
   projectiles.js       Projectile spawning, movement, and rendering
   explosions.js        Particle explosion effects
   collision.js         Collision detection
-  lua-integration.js   Fengari/Lua bridge (operates on player 1's ship)
+  world.js             World dimensions, player colors, spawn positions
+  lua-integration.js   Fengari/Lua bridge
   editor.js            Script editor panel UI
+  leaderboard.js       Score tracking and display
+  net.js               WebSocket client and interpolation
   storage.js           localStorage persistence layer
+server/
+  index.js             Multiplayer WebSocket server
 tests/
   ship.test.js             Ship physics unit tests
   projectiles.test.js      Projectile system unit tests
   explosions.test.js       Explosion particle unit tests
   collision.test.js        Collision detection unit tests
+  world.test.js            World constants unit tests
+  leaderboard.test.js      Leaderboard scoring unit tests
+  interpolation.test.js    Network interpolation unit tests
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
   stars.test.js            Starfield unit tests
@@ -120,7 +133,9 @@ tests/
 ### Scripts
 
 ```bash
-npm run dev          # Start local dev server on port 8080
+npm run dev          # Local dev server (2-player local mode)
+npm run serve        # Multiplayer server (LAN)
+npm run serve:tunnel # Multiplayer server + public URL for remote play
 npm run lint         # Run ESLint
 npm test             # Run tests (Vitest)
 npm run test:watch   # Run tests in watch mode
