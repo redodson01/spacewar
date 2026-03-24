@@ -9,7 +9,7 @@ describe('world constants', () => {
 
   it('defines 4 player colors', () => {
     expect(PLAYER_COLORS).toHaveLength(4);
-    expect(PLAYER_COLORS).toEqual(['#f00', '#0f0', '#00f', '#ff0']);
+    expect(PLAYER_COLORS).toEqual(['#dc322f', '#859900', '#268bd2', '#b58900']);
   });
 
   it('defines 4 spawn positions within world bounds', () => {

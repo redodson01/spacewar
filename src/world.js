@@ -1,7 +1,7 @@
 export const WORLD_WIDTH = 1920;
 export const WORLD_HEIGHT = 1080;
 
-export const PLAYER_COLORS = ['#f00', '#0f0', '#00f', '#ff0'];
+export const PLAYER_COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900'];
 
 export const SPAWN_POSITIONS = [
   { x: WORLD_WIDTH / 4,     y: WORLD_HEIGHT / 4,     angle: Math.PI / 4 },       // top-left, faces SE
