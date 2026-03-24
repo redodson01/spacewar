@@ -125,7 +125,8 @@ async function startTunnel() {
   try {
     const { startTunnel: start } = await import('untun');
     const tunnel = await start({ port: PORT });
-    console.log(`  Public: ${tunnel.url}`);
+    const url = await tunnel.getURL();
+    console.log(`  Public: ${url}`);
   } catch (e) {
     console.error('Failed to start tunnel:', e.message);
     console.error('Install untun: npm install --save-dev untun');
