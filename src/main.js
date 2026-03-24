@@ -1,5 +1,5 @@
 import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn, tickInvulnerable } from './ship.js';
-import { createInputManager, PLAYER_BINDINGS, getActions } from './input.js';
+import { createInputManager, PLAYER_BINDINGS, getActions, getNetworkActions } from './input.js';
 import { createStars, drawStars } from './stars.js';
 import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
 import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } from './explosions.js';
@@ -191,7 +191,7 @@ net.onChat((name, color, text) => {
 function showHelpInChat() {
   const hint = '#586e75'; // Solarized base01
   if (networkMode) {
-    chat.addMessage('', hint, 'WASD + Space to shoot | Enter to chat | /help for help');
+    chat.addMessage('', hint, 'WASD / Arrows + Space to shoot | Enter to chat | /help for help');
     if (net.localId === 0) {
       chat.addMessage('', hint, 'Host: ` for editor | /command to run Lua');
     }
@@ -411,16 +411,16 @@ function gameLoop(time) {
     const ship = ships[i];
 
     if (ship.isLocal) {
-      const bindings = PLAYER_BINDINGS[ship.config.controlScheme || (networkMode ? 0 : i)];
-      const actions = getActions(input.keys, bindings);
+      const actions = networkMode
+        ? getNetworkActions(input.keys)
+        : getActions(input.keys, PLAYER_BINDINGS[i]);
 
       const respawned = tickRespawn(ship, dt);
       if (networkMode && respawned) net.sendRespawn(ship);
 
       updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
       tickFireCooldown(ship, dt);
-      const fire = actions.fire || (networkMode && input.keys['Space']);
-      if (fire && !ship.state.destroyed) {
+      if (actions.fire && !ship.state.destroyed) {
         if (fireProjectile(projectiles, ship)) {
           if (networkMode) net.sendFire(ship);
         }

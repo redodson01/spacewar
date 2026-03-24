@@ -275,7 +275,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       '  ship.friction          Velocity decay 0-1 (default 0.995)',
       '  ship.fireCooldown      Seconds between shots (default 0.25)',
       '  ship.showName          Show name above ship (default false)',
-      '  ship.controlScheme     0=WASD, 1=arrows (default 0)',
       '  ship.explosionParticles  Particle count (default 25)',
       '',
       'SHIP STATE (resets on respawn)',
