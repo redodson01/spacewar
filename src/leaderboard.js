@@ -33,15 +33,19 @@ export function createLeaderboard() {
     const scores = getScores();
     if (scores.length === 0) return;
 
-    ctx.font = '14px monospace';
+    ctx.font = '18px monospace';
     ctx.textAlign = 'left';
     const x = 15;
     let y = 25;
 
+    const col2 = x + 50;
     ctx.fillStyle = '#888';
     ctx.shadowColor = '#888';
     ctx.shadowBlur = 6;
-    ctx.fillText('SCORE', x, y);
+    ctx.textAlign = 'right';
+    ctx.fillText('SCORE', col2, y);
+    ctx.textAlign = 'left';
+    ctx.fillText('  PLAYER', col2, y);
     y += 20;
 
     for (const entry of scores) {
@@ -49,9 +53,9 @@ export function createLeaderboard() {
       ctx.shadowColor = entry.color;
       const scoreStr = String(entry.score).padStart(4, ' ');
       ctx.textAlign = 'right';
-      ctx.fillText(scoreStr, x + 40, y);
+      ctx.fillText(scoreStr, col2, y);
       ctx.textAlign = 'left';
-      ctx.fillText(`  ${entry.name}`, x + 40, y);
+      ctx.fillText(`  ${entry.name}`, col2, y);
       y += 18;
     }
 

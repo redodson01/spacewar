@@ -1,6 +1,6 @@
 import { createShip, resetShip, updateShip, drawShip, destroyShip, tickRespawn, tickInvulnerable } from './ship.js';
 import { createInputManager, PLAYER_BINDINGS, getActions } from './input.js';
-import { createStars, resizeStars, drawStars } from './stars.js';
+import { createStars, drawStars } from './stars.js';
 import { PROJECTILE_DEFAULTS, createProjectiles, fireProjectile, updateProjectiles, drawProjectiles, tickFireCooldown } from './projectiles.js';
 import { createExplosions, spawnExplosion, updateExplosions, drawExplosions } from './explosions.js';
 import { checkShipProjectileCollision, checkShipShipCollision } from './collision.js';
@@ -19,7 +19,7 @@ canvas.height = window.innerHeight;
 
 // Game objects
 const ships = [];
-const stars = createStars(canvas.width, canvas.height);
+const stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
 const input = createInputManager(['script-input', 'repl-input']);
@@ -94,7 +94,6 @@ appendOutput = editorAPI.appendOutput;
 window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  resizeStars(stars, canvas.width, canvas.height);
 });
 
 // --- Networking callbacks ---
@@ -228,10 +227,10 @@ function gameLoop(time) {
   lastTime = time;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawStars(ctx, stars);
 
   applyWorldTransform();
   drawWorldBorder();
+  drawStars(ctx, stars);
 
   for (let i = 0; i < ships.length; i++) {
     const ship = ships[i];
@@ -306,10 +305,10 @@ function gameLoop(time) {
     drawShip(ctx, ship);
   }
 
-  ctx.restore();
-
-  // Leaderboard in screen space
+  // Leaderboard in world space
   leaderboard.draw(ctx);
+
+  ctx.restore();
 
   requestAnimationFrame(gameLoop);
 }
