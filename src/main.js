@@ -42,15 +42,29 @@ function makeShip(id) {
   return ship;
 }
 
-// Initialize local 2-player mode (default)
+// Initialize local mode (single player by default, P2 joins on Slash)
 function initLocalMode() {
   ships.length = 0;
-  ships.push(makeShip(0), makeShip(1));
-  for (const s of ships) {
-    s.isLocal = true;
-    s.name = `Player ${s.id + 1}`;
-    leaderboard.addPlayer(s.id, s.name, s.config.color);
-  }
+  const p1 = makeShip(0);
+  p1.isLocal = true;
+  p1.controlBinding = 0;
+  p1.name = 'Player 1';
+  ships.push(p1);
+  leaderboard.addPlayer(p1.id, p1.name, p1.config.color);
+}
+
+let p2Joined = false;
+function joinP2() {
+  if (p2Joined || networkMode) return;
+  p2Joined = true;
+  const p2 = makeShip(1);
+  p2.isLocal = true;
+  p2.controlBinding = 1;
+  p2.name = 'Player 2';
+  ships.push(p2);
+  leaderboard.addPlayer(p2.id, p2.name, p2.config.color);
+  luaCtx.reset();
+  chat.addMessage('', '#586e75', 'Player 2 joined!');
 }
 
 function startGame() {
@@ -200,9 +214,16 @@ function showHelpInChat() {
       chat.addMessage('', hint, 'Host: ` for editor | /command to run Lua');
     }
   } else {
-    chat.addMessage('', hint, 'P1: WASD + Space | P2: Arrows + / | ` for editor');
+    chat.addMessage('', hint, 'P1: WASD + Space | Press / for P2 to join | ` for editor');
   }
 }
+
+// P2 joins local game on first Slash press
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Slash' && !p2Joined && !networkMode && e.target === document.body) {
+    joinP2();
+  }
+});
 
 // Chat input handling
 const chatBar = document.getElementById('chat-bar');
@@ -427,9 +448,12 @@ function gameLoop(time) {
     const ship = ships[i];
 
     if (ship.isLocal) {
-      const actions = networkMode
-        ? getNetworkActions(input.keys)
-        : getActions(input.keys, PLAYER_BINDINGS[i]);
+      let actions;
+      if (networkMode) {
+        actions = getNetworkActions(input.keys);
+      } else {
+        actions = getActions(input.keys, PLAYER_BINDINGS[ship.controlBinding || 0]);
+      }
 
       const respawned = tickRespawn(ship, dt);
       if (networkMode && respawned) net.sendRespawn(ship);
