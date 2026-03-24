@@ -6,7 +6,6 @@ export const CONFIG_DEFAULTS = {
   friction: 0.995,
   fireCooldown: 0.25,
   showName: false,
-  controlScheme: 0,
   explosionParticles: 25,
 };
 

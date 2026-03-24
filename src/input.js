@@ -45,3 +45,12 @@ export function getActions(keys, bindings) {
     fire: !!keys[bindings.fire],
   };
 }
+
+export function getNetworkActions(keys) {
+  return {
+    thrust: !!keys['KeyW'] || !!keys['ArrowUp'],
+    left: !!keys['KeyA'] || !!keys['ArrowLeft'],
+    right: !!keys['KeyD'] || !!keys['ArrowRight'],
+    fire: !!keys['Space'],
+  };
+}
