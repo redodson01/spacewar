@@ -4,6 +4,7 @@
 
 import * as fengariLib from 'fengari';
 import * as interop from 'fengari-interop';
+import { CONFIG_DEFAULTS, STATE_DEFAULTS } from '../src/ship.js';
 
 const fengari = {
   lua: fengariLib.lua,
@@ -14,18 +15,8 @@ const fengari = {
   to_jsstring: fengariLib.to_jsstring,
 };
 
-const CONFIG_KEYS = new Set(['color', 'radius', 'thrust', 'turnSpeed', 'friction', 'fireCooldown', 'showName', 'explosionParticles']);
-const STATE_KEYS = new Set(['x', 'y', 'angle', 'vx', 'vy', 'thrusting', 'destroyed', 'respawnTimer', 'invulnerableTimer', 'fireCooldownTimer']);
-
-const CONFIG_DEFAULTS = {
-  color: '#0ff', radius: 20, thrust: 0.15, turnSpeed: 0.05,
-  friction: 0.995, fireCooldown: 0.25, showName: false, explosionParticles: 25,
-};
-
-const STATE_DEFAULTS = {
-  x: 0, y: 0, angle: 0, vx: 0, vy: 0, thrusting: false,
-  destroyed: false, respawnTimer: 0, invulnerableTimer: 0, fireCooldownTimer: 0,
-};
+const CONFIG_KEYS = new Set(Object.keys(CONFIG_DEFAULTS));
+const STATE_KEYS = new Set(Object.keys(STATE_DEFAULTS));
 
 function createShipProxy(ship, onConfigChange, onStateChange) {
   return new Proxy(ship, {

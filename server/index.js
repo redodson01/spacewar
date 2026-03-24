@@ -10,6 +10,7 @@ import { getAIActions } from '../src/ai.js';
 import { updateShip, destroyShip, tickRespawn, tickInvulnerable } from '../src/ship.js';
 import { PROJECTILE_DEFAULTS, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
 import { checkShipProjectileCollision, checkShipShipCollision } from '../src/collision.js';
+import { computeSpawnPositions } from '../src/world.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -38,19 +39,6 @@ const MAX_PLAYERS = 8;
 const players = new Map(); // ws -> { id, color, name }
 const aiIds = new Map(); // aiId -> ownerWs ('server' for server-spawned AI)
 
-// Spawn positions (same formula as client world.js)
-function computeSpawnPositions(w, h) {
-  const positions = [];
-  for (let i = 0; i < MAX_PLAYERS; i++) {
-    const angle = (i / MAX_PLAYERS) * Math.PI * 2 - Math.PI / 2;
-    positions.push({
-      x: w / 2 + Math.cos(angle) * w * 0.35,
-      y: h / 2 + Math.sin(angle) * h * 0.35,
-      angle: angle + Math.PI,
-    });
-  }
-  return positions;
-}
 const SPAWN_POSITIONS = computeSpawnPositions(WORLD_WIDTH, WORLD_HEIGHT);
 
 // Server-side ship tracking (for Lua context)
@@ -181,10 +169,10 @@ setInterval(() => {
     }
 
     // Send state at 20Hz
-    const now = Date.now();
+    const sendNow = Date.now();
     const lastTime = lastAISendTimes.get(ship.id) || 0;
-    if (now - lastTime >= SEND_INTERVAL) {
-      lastAISendTimes.set(ship.id, now);
+    if (sendNow - lastTime >= SEND_INTERVAL) {
+      lastAISendTimes.set(ship.id, sendNow);
       const s = ship.state;
       broadcastAll({
         type: 'state', id: ship.id,
@@ -226,6 +214,7 @@ setInterval(() => {
   for (let i = 0; i < ships.length; i++) {
     for (let j = i + 1; j < ships.length; j++) {
       if (!isServerAI(ships[i]) && !isServerAI(ships[j])) continue;
+      if (ships[i].state.destroyed || ships[j].state.destroyed) continue;
       if (ships[i].state.invulnerableTimer > 0 || ships[j].state.invulnerableTimer > 0) continue;
       if (checkShipShipCollision(ships[i], ships[j])) {
         if (isServerAI(ships[i])) {

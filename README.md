@@ -138,6 +138,7 @@ tests/
   lua-integration.test.js  Lua bridge integration tests
   input.test.js            Input manager unit tests
   stars.test.js            Starfield unit tests
+  server-lua.test.js       Server Lua context unit tests
   storage.test.js          Storage persistence unit tests
 ```
 
