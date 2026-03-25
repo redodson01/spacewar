@@ -126,10 +126,10 @@ export function createNetClient() {
     }
   }
 
-  function sendState(ship) {
+  function sendState(ship, interval = SEND_INTERVAL) {
     const now = performance.now();
     const lastTime = lastSendTimes.get(ship.id) || 0;
-    if (now - lastTime < SEND_INTERVAL) return;
+    if (now - lastTime < interval) return;
     lastSendTimes.set(ship.id, now);
     const s = ship.state;
     send({

@@ -189,7 +189,8 @@ setInterval(() => {
     // Send state at 20Hz
     const sendNow = Date.now();
     const lastTime = lastAISendTimes.get(ship.id) || 0;
-    if (sendNow - lastTime >= SEND_INTERVAL) {
+    const scaledInterval = SEND_INTERVAL / Math.max(0.25, serverGameSpeed);
+    if (sendNow - lastTime >= scaledInterval) {
       lastAISendTimes.set(ship.id, sendNow);
       const s = ship.state;
       broadcastAll({

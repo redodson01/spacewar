@@ -534,7 +534,7 @@ function gameLoop(time) {
           if (networkMode) net.sendFire(ship);
         }
       }
-      if (networkMode) net.sendState(ship);
+      if (networkMode) net.sendState(ship, 50 / Math.max(0.25, gameSpeed));
     } else {
       interpolator.apply(ship, dt);
     }
