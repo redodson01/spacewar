@@ -100,6 +100,9 @@ const appendOutput = (text, isError) => {
   if (text.startsWith('> ')) return; // skip REPL echo lines
   const color = isError ? '#dc322f' : '#2aa198';
   chat.addMessage('', color, text);
+  if (networkMode && net.isConnected) {
+    net.sendChat('', color, text, 'lua');
+  }
 };
 
 // Lua context — starts as local, swaps to network relay on connect

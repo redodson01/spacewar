@@ -32,6 +32,11 @@ registerCommand('help', {
     ctx.chat.addMessage('', hint, 'Enter to chat | ` to open script editor');
     ctx.chat.addMessage('', hint, 'Commands: /help /name /ai /removeai /speed');
     ctx.chat.addMessage('', hint, 'Lua: /ship.color="#ff0"  /help()  /speed(2)');
+    if (!ctx.networkMode) {
+      ctx.chat.addMessage('', hint, 'Press / to add Player 2 (local co-op)');
+    } else if (ctx.isHost) {
+      ctx.chat.addMessage('', hint, 'You are the host — /ai and /speed are available');
+    }
   },
 });
 
