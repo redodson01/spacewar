@@ -247,7 +247,7 @@ const chatHistory = loadChatHistory();
 let chatHistoryIdx = chatHistory.length;
 
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Enter' && !chatOpen && networkMode && e.target === document.body) {
+  if (e.code === 'Enter' && !chatOpen && e.target === document.body) {
     e.preventDefault();
     chatOpen = true;
     chatBar.classList.add('open');
