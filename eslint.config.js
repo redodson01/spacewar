@@ -60,6 +60,8 @@ export default [
         URL: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
         Date: 'readonly',
       },
     },
