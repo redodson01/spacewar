@@ -380,6 +380,11 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
+      // Enforce max chat message length
+      if (msg.type === 'chat' && typeof msg.text === 'string' && msg.text.length > 200) {
+        return;
+      }
+
       // Relay game messages to other clients
       broadcast(ws, str);
 
