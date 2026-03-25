@@ -95,9 +95,10 @@ const elements = {
 // Lua integration — use fengari from CDN global if available
 const fengari = (typeof globalThis.fengari !== 'undefined') ? globalThis.fengari : null;
 
-let appendOutput = (text, isError) => {
-  if (isError) console.error(text);
-  else console.log(text);
+const appendOutput = (text, isError) => {
+  if (text.startsWith('> ')) return; // skip REPL echo lines
+  const color = isError ? '#dc322f' : '#2aa198';
+  chat.addMessage('', color, text);
 };
 
 // Lua context — starts as local, swaps to network relay on connect
@@ -272,24 +273,10 @@ chatInput.addEventListener('keydown', (e) => {
         saveChatHistory(chatHistory);
       }
       chatHistoryIdx = chatHistory.length;
-      if (text === '/help') {
-        showHelpInChat();
-      } else if (text.startsWith('/')) {
+      if (text.startsWith('/')) {
+        // /commands — run as Lua, output routes to chat via appendOutput
         if (!networkMode || net.localId === 0) {
-          // Run as Lua command — output goes to editor, chat, and network
-          const origAppendOutput = appendOutput;
-          const chatOutputs = [];
-          appendOutput = (t, isError) => {
-            origAppendOutput(t, isError);
-            if (!t.startsWith('> ')) chatOutputs.push({ text: t, isError });
-          };
           luaCtx.runLuaREPL(text.slice(1));
-          appendOutput = origAppendOutput;
-          for (const o of chatOutputs) {
-            const color = o.isError ? '#dc322f' : '#2aa198';
-            chat.addMessage('', color, o.text);
-            if (!o.isError) net.sendChat('', color, o.text);
-          }
         } else {
           chat.addMessage('', '#dc322f', 'Only the host can run /commands.');
         }
