@@ -99,14 +99,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
     },
   });
 
-  // Log panel (left, below info)
+  // Log panel (left, below info — 1 row gap from info box)
   const logBox = blessed.log({
     parent: screen,
     label: ' Log ',
-    top: 4,
+    top: 5,
     left: 0,
-    width: '75%',
-    bottom: 3,
+    width: '75%-1',
+    bottom: 4,
     border: { type: 'line' },
     style: {
       border: { fg: BORDER },
@@ -119,14 +119,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
     mouse: true,
   });
 
-  // Player list (right-top)
+  // Player list (right-top — 1 col gap from log)
   const playerBox = blessed.box({
     parent: screen,
     label: ' Players ',
-    top: 4,
+    top: 5,
     right: 0,
-    width: '25%+1',
-    height: '60%',
+    width: '25%',
+    height: '50%-3',
     border: { type: 'line' },
     style: {
       border: { fg: BORDER },
@@ -135,14 +135,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
     tags: true,
   });
 
-  // Stats panel (right-bottom)
+  // Stats panel (right-bottom — 1 row gap from players)
   const statsBox = blessed.box({
     parent: screen,
     label: ' Stats ',
     right: 0,
-    width: '25%+1',
-    top: '60%',
-    bottom: 3,
+    width: '25%',
+    top: '50%+3',
+    bottom: 4,
     border: { type: 'line' },
     style: {
       border: { fg: BORDER },
@@ -172,14 +172,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
   let currentInput = '';
 
   function activateInput() {
-    inputBox.setValue('');
+    inputBox.setValue('> ');
     inputBox.focus();
     inputBox.readInput(() => {});
     screen.render();
   }
 
   inputBox.on('submit', (value) => {
-    const line = (value || '').trim();
+    const line = (value || '').replace(/^> /, '').trim();
     if (line) {
       history.add(line);
       onInput(line);
@@ -192,17 +192,17 @@ export function createTUI({ getGameState, onInput, onExit }) {
   });
 
   inputBox.key('up', () => {
-    const cur = inputBox.getValue().trim();
+    const cur = inputBox.getValue().replace(/^> /, '').trim();
     if (cur && history.index === history.entries.length) {
       currentInput = cur;
     }
-    inputBox.setValue(history.up());
+    inputBox.setValue('> ' + history.up());
     screen.render();
   });
 
   inputBox.key('down', () => {
     const next = history.down();
-    inputBox.setValue(next || currentInput);
+    inputBox.setValue('> ' + (next || currentInput));
     if (history.index === history.entries.length) currentInput = '';
     screen.render();
   });
@@ -278,9 +278,9 @@ export function createTUI({ getGameState, onInput, onExit }) {
     infoBox.setContent(lines.join('\n'));
     // Resize info box to fit content (borders + lines)
     infoBox.height = lines.length + 2;
-    // Push log and player/stats panels below
-    logBox.top = infoBox.height;
-    playerBox.top = infoBox.height;
+    // Push log and player/stats panels below (with 1 row gap)
+    logBox.top = infoBox.height + 1;
+    playerBox.top = infoBox.height + 1;
     screen.render();
   }
 
