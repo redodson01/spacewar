@@ -49,6 +49,7 @@ registerCommand('name', {
     }
     if (ctx.localShip) {
       ctx.localShip.name = newName;
+      if (ctx.leaderboard) ctx.leaderboard.updateName(ctx.localShip.id, newName);
       if (ctx.net && ctx.networkMode) {
         ctx.net.sendNameChange(ctx.localShip.id, newName);
       }

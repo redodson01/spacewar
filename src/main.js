@@ -275,7 +275,7 @@ chatInput.addEventListener('keydown', (e) => {
         const cmdArgs = spaceIdx > 0 ? text.slice(spaceIdx + 1) : '';
         const localShip = ships.find(s => s.isLocal);
         const ctx = {
-          chat, luaCtx, net, networkMode,
+          chat, luaCtx, net, networkMode, leaderboard,
           isHost: !networkMode || net.localId === 0,
           localShip,
           saveName: (name) => saveName(name, localShip?.id),
