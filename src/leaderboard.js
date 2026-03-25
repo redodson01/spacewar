@@ -80,7 +80,13 @@ export function createLeaderboard() {
       ctx.textAlign = 'right';
       ctx.fillText(scoreStr, col2, y);
       ctx.textAlign = 'left';
-      ctx.fillText(`  ${entry.name}`, col2, y);
+      const maxNameWidth = col3 - col2 - 50; // leave gap before PING column
+      let displayName = entry.name;
+      while (ctx.measureText(`  ${displayName}`).width > maxNameWidth && displayName.length > 1) {
+        displayName = displayName.slice(0, -1);
+      }
+      if (displayName !== entry.name) displayName += '…';
+      ctx.fillText(`  ${displayName}`, col2, y);
       if (entry.rtt != null) {
         ctx.textAlign = 'right';
         ctx.fillText(`${entry.rtt}ms`, col3, y);
