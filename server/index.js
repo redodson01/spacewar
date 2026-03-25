@@ -347,13 +347,17 @@ wss.on('connection', (ws, req) => {
           const rtt = Date.now() - pendingPingTime;
           pendingPingTime = null;
           playerLatencies.set(id, rtt);
-          broadcastAll({ type: 'latencies', data: [...playerLatencies.entries()].map(([pid, rtt]) => ({ id: pid, rtt })) });
+          broadcastAll({ type: 'latency', id, rtt });
         }
         return; // don't relay pong
       }
 
       // Handle Lua execution from client editor/REPL
       if (msg.type === 'luaExec') {
+        if (msg.mode === 'reset') {
+          serverLua.reset();
+          return;
+        }
         let result;
         if (msg.mode === 'run') {
           result = serverLua.runLua(msg.code);

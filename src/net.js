@@ -19,7 +19,7 @@ export function createNetClient() {
     nameChange: null,
     gameSpeed: null,
     luaOutput: null,
-    latencies: null,
+    latency: null,
   };
 
   function connect() {
@@ -97,8 +97,8 @@ export function createNetClient() {
             // Respond immediately with pong
             if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'pong', t: msg.t }));
             break;
-          case 'latencies':
-            if (callbacks.latencies) callbacks.latencies(msg.data);
+          case 'latency':
+            if (callbacks.latency) callbacks.latency(msg.id, msg.rtt);
             break;
         }
       };
@@ -218,7 +218,7 @@ export function createNetClient() {
     onStateOverride(cb) { callbacks.stateOverride = cb; },
     onGameSpeed(cb) { callbacks.gameSpeed = cb; },
     onLuaOutput(cb) { callbacks.luaOutput = cb; },
-    onLatencies(cb) { callbacks.latencies = cb; },
+    onLatency(cb) { callbacks.latency = cb; },
   };
 }
 

@@ -42,7 +42,7 @@ function createNetworkLuaContext(net, appendOutput) {
     runLua(code) { net.sendLuaExec(code, 'run'); },
     runLuaREPL(line) { net.sendLuaExec(line, 'repl'); },
     callLuaUpdate(_dt) {}, // server handles onUpdate
-    reset() { net.sendLuaExec('-- reset', 'run'); },
+    reset() { net.sendLuaExec('__reset__', 'reset'); },
     setOnShipUpdate() {},
     setOnNameChange() {},
     setOnAIAdd() {},

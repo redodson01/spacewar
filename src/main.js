@@ -34,6 +34,7 @@ const chat = createChat();
 const net = createNetClient();
 const interpolator = createInterpolator();
 let networkMode = false;
+let gameSpeed = 1.0;
 
 function makeShip(id) {
   const spawn = SPAWN_POSITIONS[id];
@@ -390,10 +391,8 @@ luaCtx.setGameSpeedAccessors(() => gameSpeed, (v) => { gameSpeed = v; });
 
 net.onGameSpeed((speed) => { gameSpeed = speed; });
 
-net.onLatencies((data) => {
-  for (const { id, rtt } of data) {
-    leaderboard.updateLatency(id, rtt);
-  }
+net.onLatency((id, rtt) => {
+  leaderboard.updateLatency(id, rtt);
 });
 
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
@@ -503,8 +502,6 @@ function drawWorldBorder() {
 
 // Game loop
 let lastTime = 0;
-
-let gameSpeed = 1.0;
 
 function gameLoop(time) {
   const rawDt = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
