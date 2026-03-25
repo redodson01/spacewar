@@ -24,9 +24,10 @@ export function createNetClient() {
     latency: null,
   };
 
-  function connect() {
+  function connect(name) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}`;
+    let url = `${protocol}//${window.location.host}`;
+    if (name) url += `?name=${encodeURIComponent(name)}`;
 
     return new Promise((resolve) => {
       try {

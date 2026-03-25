@@ -384,8 +384,10 @@ luaCtx.setOnShipUpdate((updates) => {
   if (networkMode) net.sendLuaUpdate(updates);
 });
 
-// Try to connect — if it works, switch to network mode
-net.connect().then((welcome) => {
+// Try connecting with saved name; prompt only after successful connection
+const savedName = loadName() || '';
+
+net.connect(savedName || undefined).then((welcome) => {
   if (!welcome) {
     startGame();
     return;
@@ -399,18 +401,17 @@ net.connect().then((welcome) => {
     return;
   }
 
-  // Resolve player name: check per-slot storage, then prompt
-  const savedSlotName = loadName(welcome.id);
-  let playerName;
-  if (savedSlotName) {
-    playerName = savedSlotName;
-  } else {
-    const savedGenericName = loadName();
-    playerName = prompt('Enter your name:', savedGenericName || '');
+  // Resolve name: use server-assigned name, or prompt if it's a default
+  let playerName = welcome.name;
+  if (!savedName && playerName.startsWith('Player ')) {
+    const prompted = prompt('Enter your name:', '');
+    if (prompted) {
+      playerName = prompted;
+      net.sendNameChange(welcome.id, playerName);
+    }
   }
-  playerName = playerName || 'Player';
   saveName(playerName, welcome.id);
-  saveName(playerName); // also save as generic fallback
+  saveName(playerName);
 
   networkMode = true;
 
@@ -430,11 +431,6 @@ net.connect().then((welcome) => {
   localShip.isLocal = true;
   localShip.name = playerName;
   ships.push(localShip);
-
-  // Send name update if different from server default
-  if (playerName !== welcome.name) {
-    net.sendNameChange(welcome.id, playerName);
-  }
 
   for (const p of welcome.players) {
     const ship = makeShip(p.id);

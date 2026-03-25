@@ -616,6 +616,8 @@ httpServer.listen(PORT, () => {
   if (process.argv.includes('--tunnel')) {
     startTunnel();
   }
+
+  logger.log('info', { text: '' });
 });
 
 async function startTunnel() {
