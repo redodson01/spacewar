@@ -42,8 +42,9 @@ export function tickFireCooldown(ship, dt) {
 export function updateProjectiles(projectiles, dt, canvasWidth, canvasHeight) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
-    p.x += p.vx;
-    p.y += p.vy;
+    const scale = dt * 60;
+    p.x += p.vx * scale;
+    p.y += p.vy * scale;
     p.age += dt;
 
     if (p.age >= p.lifetime || p.x < 0 || p.x > canvasWidth || p.y < 0 || p.y > canvasHeight) {

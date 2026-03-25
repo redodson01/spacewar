@@ -19,6 +19,11 @@ export function createLeaderboard() {
     if (entry) entry.name = name;
   }
 
+  function updateLatency(id, rtt) {
+    const entry = entries.get(id);
+    if (entry) entry.rtt = rtt;
+  }
+
   function clear() {
     entries.clear();
   }
@@ -56,6 +61,7 @@ export function createLeaderboard() {
     let y = 15 + 14; // 15px padding + font size
 
     const col2 = x + 50;
+    const col3 = col2 + 120;
     ctx.fillStyle = '#839496';
     ctx.shadowColor = '#839496';
     ctx.shadowBlur = 6;
@@ -63,6 +69,8 @@ export function createLeaderboard() {
     ctx.fillText('SCORE', col2, y);
     ctx.textAlign = 'left';
     ctx.fillText('  PLAYER', col2, y);
+    ctx.textAlign = 'right';
+    ctx.fillText('PING', col3, y);
     y += 20;
 
     for (const entry of scores) {
@@ -72,12 +80,22 @@ export function createLeaderboard() {
       ctx.textAlign = 'right';
       ctx.fillText(scoreStr, col2, y);
       ctx.textAlign = 'left';
-      ctx.fillText(`  ${entry.name}`, col2, y);
+      const maxNameWidth = col3 - col2 - 50; // leave gap before PING column
+      let displayName = entry.name;
+      while (ctx.measureText(`  ${displayName}`).width > maxNameWidth && displayName.length > 1) {
+        displayName = displayName.slice(0, -1);
+      }
+      if (displayName !== entry.name) displayName += '…';
+      ctx.fillText(`  ${displayName}`, col2, y);
+      if (entry.rtt != null) {
+        ctx.textAlign = 'right';
+        ctx.fillText(`${entry.rtt}ms`, col3, y);
+      }
       y += 18;
     }
 
     ctx.shadowBlur = 0;
   }
 
-  return { addPlayer, removePlayer, updateColor, updateName, clear, recordKill, recordCollision, setScores, getScores, draw };
+  return { addPlayer, removePlayer, updateColor, updateName, updateLatency, clear, recordKill, recordCollision, setScores, getScores, draw };
 }

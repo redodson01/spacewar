@@ -41,11 +41,11 @@ describe('spawnExplosion', () => {
 });
 
 describe('updateExplosions', () => {
-  it('moves particles by their velocity', () => {
+  it('moves particles by their velocity scaled by dt', () => {
     const explosions = [{ x: 10, y: 20, vx: 2, vy: -1, age: 0, lifetime: 1, radius: 1, color: '#fff', opacity: 1 }];
-    updateExplosions(explosions, 0.016);
-    expect(explosions[0].x).toBe(12);
-    expect(explosions[0].y).toBe(19);
+    updateExplosions(explosions, 1 / 60);
+    expect(explosions[0].x).toBe(12); // 10 + 2 * (1/60 * 60)
+    expect(explosions[0].y).toBe(19); // 20 + (-1) * (1/60 * 60)
   });
 
   it('increments age by dt', () => {

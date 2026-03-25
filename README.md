@@ -80,9 +80,10 @@ Type `help()` in the REPL for the full reference. Summary:
 | `addAI()` | Add an AI opponent |
 | `removeAI(n)` | Remove AI player n |
 | `setName(n, name)` | Rename player n (e.g. `setName(1, "Alice")`) |
+| `speed()` / `speed(n)` | Get/set game speed (1=normal, 2=double, 0.5=half) |
 | `print(...)` | Output to the editor console |
 | `help()` | Print full API reference |
-| `function onUpdate(dt) ... end` | Per-frame callback (dt in seconds) |
+| `function onUpdate(dt) ... end` | Per-tick callback (~60Hz, dt in seconds) |
 
 ### Examples
 
@@ -162,7 +163,9 @@ npm run test:watch   # Run tests in watch mode
 ### Architecture
 
 - **No build step** -- the game runs as plain ES modules served over HTTP
-- **Fengari** is loaded from CDN in the browser; the npm `fengari`/`fengari-interop` packages are dev dependencies for testing only
+- **Fengari** runs on the server as the single authoritative Lua engine; the client editor relays commands to it in network mode, with a local fallback for offline play
+- **dt-scaling** -- all physics normalized to 60fps reference rate, consistent across any display refresh rate or server tick rate
+- **Leaderboard** shows score, player name, and ping (RTT) for each human player
 - All modules use **dependency injection** for testability (fengari, canvas, DOM elements are passed as parameters)
 
 ## License

@@ -17,6 +17,9 @@ export function createNetClient() {
     luaUpdate: null,
     chat: null,
     nameChange: null,
+    gameSpeed: null,
+    luaOutput: null,
+    latency: null,
   };
 
   function connect() {
@@ -84,6 +87,19 @@ export function createNetClient() {
           case 'stateOverride':
             if (callbacks.stateOverride) callbacks.stateOverride(msg.targetId, msg);
             break;
+          case 'gameSpeed':
+            if (callbacks.gameSpeed) callbacks.gameSpeed(msg.speed);
+            break;
+          case 'luaOutput':
+            if (callbacks.luaOutput) callbacks.luaOutput(msg.text, msg.isError);
+            break;
+          case 'ping':
+            // Respond immediately with pong
+            if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'pong', t: msg.t }));
+            break;
+          case 'latency':
+            if (callbacks.latency) callbacks.latency(msg.id, msg.rtt);
+            break;
         }
       };
 
@@ -118,10 +134,10 @@ export function createNetClient() {
     }
   }
 
-  function sendState(ship) {
+  function sendState(ship, interval = SEND_INTERVAL) {
     const now = performance.now();
     const lastTime = lastSendTimes.get(ship.id) || 0;
-    if (now - lastTime < SEND_INTERVAL) return;
+    if (now - lastTime < interval) return;
     lastSendTimes.set(ship.id, now);
     const s = ship.state;
     send({
@@ -170,6 +186,10 @@ export function createNetClient() {
     send({ type: 'nameChange', playerId, newName });
   }
 
+  function sendLuaExec(code, mode) {
+    send({ type: 'luaExec', code, mode });
+  }
+
   return {
     connect,
     disconnect,
@@ -180,6 +200,7 @@ export function createNetClient() {
     sendLuaUpdate,
     sendChat,
     sendNameChange,
+    sendLuaExec,
     sendAIJoin,
     sendAILeave,
     get isConnected() { return connected; },
@@ -195,6 +216,9 @@ export function createNetClient() {
     onChat(cb) { callbacks.chat = cb; },
     onNameChange(cb) { callbacks.nameChange = cb; },
     onStateOverride(cb) { callbacks.stateOverride = cb; },
+    onGameSpeed(cb) { callbacks.gameSpeed = cb; },
+    onLuaOutput(cb) { callbacks.luaOutput = cb; },
+    onLatency(cb) { callbacks.latency = cb; },
   };
 }
 
