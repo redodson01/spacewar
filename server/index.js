@@ -539,6 +539,8 @@ httpServer.listen(PORT, () => {
     input: process.stdin,
     output: process.stdout,
     prompt: '> ',
+    history: [],
+    historySize: 200,
   });
 
   rl.prompt();
