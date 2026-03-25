@@ -30,7 +30,7 @@ registerCommand('help', {
     const hint = '#586e75';
     ctx.chat.addMessage('', hint, 'Controls: WASD / Arrows + Space to shoot');
     ctx.chat.addMessage('', hint, 'Enter to chat | ` to open script editor');
-    ctx.chat.addMessage('', hint, 'Commands: /help /name /ai /removeai /speed /latency');
+    ctx.chat.addMessage('', hint, 'Commands: /help /name /ai /removeai /speed');
     ctx.chat.addMessage('', hint, 'Lua: /ship.color="#ff0"  /help()  /speed(2)');
   },
 });
@@ -56,7 +56,6 @@ registerCommand('name', {
 registerCommand('ai', {
   hostOnly: true,
   handler(_args, ctx) {
-    ctx.appendOutput('', false); // ensure appendOutput is available
     ctx.luaCtx.runLuaREPL('addAI()');
   },
 });
@@ -81,15 +80,6 @@ registerCommand('speed', {
       ctx.luaCtx.runLuaREPL('speed()');
     } else {
       ctx.luaCtx.runLuaREPL(`speed(${val})`);
-    }
-  },
-});
-
-registerCommand('latency', {
-  handler(_args, ctx) {
-    if (ctx.toggleLatency) {
-      const showing = ctx.toggleLatency();
-      ctx.chat.addMessage('', '#2aa198', `Latency display ${showing ? 'on' : 'off'}.`);
     }
   },
 });

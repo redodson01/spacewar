@@ -9,9 +9,7 @@ function makeCtx(overrides = {}) {
     networkMode: false,
     isHost: true,
     localShip: { id: 0, name: 'Player 1', config: { color: '#dc322f' } },
-    appendOutput: vi.fn(),
     saveName: vi.fn(),
-    toggleLatency: vi.fn(() => true),
     ...overrides,
   };
 }
@@ -34,7 +32,6 @@ describe('command registry', () => {
     expect(names).toContain('ai');
     expect(names).toContain('removeai');
     expect(names).toContain('speed');
-    expect(names).toContain('latency');
   });
 });
 
@@ -81,13 +78,6 @@ describe('built-in commands', () => {
     const ctx = makeCtx();
     runCommand('speed', '2', ctx);
     expect(ctx.luaCtx.runLuaREPL).toHaveBeenCalledWith('speed(2)');
-  });
-
-  it('/latency toggles latency display', () => {
-    const ctx = makeCtx();
-    runCommand('latency', '', ctx);
-    expect(ctx.toggleLatency).toHaveBeenCalled();
-    expect(ctx.chat.addMessage).toHaveBeenCalledWith('', '#2aa198', 'Latency display on.');
   });
 
   it('host-only commands are blocked for non-hosts', () => {

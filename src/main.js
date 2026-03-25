@@ -12,6 +12,7 @@ import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
 import { loadName, saveName, loadChatHistory, saveChatHistory } from './storage.js';
+import { runCommand } from './commands.js';
 
 // Canvas
 const canvas = document.getElementById('game');
@@ -228,15 +229,7 @@ net.onChat((name, color, text) => {
 });
 
 function showHelpInChat() {
-  const hint = '#586e75'; // Solarized base01
-  if (networkMode) {
-    chat.addMessage('', hint, 'WASD / Arrows + Space to shoot | Enter to chat | /help for help');
-    if (net.localId === 0) {
-      chat.addMessage('', hint, 'Host: ` for editor | /command to run Lua');
-    }
-  } else {
-    chat.addMessage('', hint, 'P1: WASD + Space | Press / for P2 to join | ` for editor');
-  }
+  runCommand('help', '', { chat, luaCtx, net, networkMode, isHost: !networkMode || net.localId === 0 });
 }
 
 // P2 joins local game on first Slash press
@@ -274,11 +267,23 @@ chatInput.addEventListener('keydown', (e) => {
       }
       chatHistoryIdx = chatHistory.length;
       if (text.startsWith('/')) {
-        // /commands — run as Lua, output routes to chat via appendOutput
-        if (!networkMode || net.localId === 0) {
-          luaCtx.runLuaREPL(text.slice(1));
-        } else {
-          chat.addMessage('', '#dc322f', 'Only the host can run /commands.');
+        const spaceIdx = text.indexOf(' ', 1);
+        const cmdName = spaceIdx > 0 ? text.slice(1, spaceIdx) : text.slice(1);
+        const cmdArgs = spaceIdx > 0 ? text.slice(spaceIdx + 1) : '';
+        const localShip = ships.find(s => s.isLocal);
+        const ctx = {
+          chat, luaCtx, net, networkMode,
+          isHost: !networkMode || net.localId === 0,
+          localShip,
+          saveName: (name) => saveName(name, localShip?.id),
+        };
+        if (!runCommand(cmdName, cmdArgs, ctx)) {
+          // Not a registered command — treat as Lua REPL
+          if (!networkMode || net.localId === 0) {
+            luaCtx.runLuaREPL(text.slice(1));
+          } else {
+            chat.addMessage('', '#dc322f', 'Only the host can run Lua commands.');
+          }
         }
       } else {
         const localShip = ships.find(s => s.isLocal);
