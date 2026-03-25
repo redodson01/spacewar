@@ -187,8 +187,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     screen.render();
   });
 
-  // --- Key bindings ---
-  screen.key(['C-c', 'C-d'], () => {
+  // --- Key bindings (on inputBox since it captures all keys while focused) ---
+  inputBox.key(['C-c', 'C-d'], () => {
     screen.destroy();
     onExit();
   });
