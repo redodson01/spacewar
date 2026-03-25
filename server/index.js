@@ -12,10 +12,17 @@ import { PROJECTILE_DEFAULTS, fireProjectile, updateProjectiles, tickFireCooldow
 import { checkShipProjectileCollision, checkShipShipCollision } from '../src/collision.js';
 import { computeSpawnPositions, PLAYER_COLORS, MAX_PLAYERS } from '../src/world.js';
 import { createLogger } from './logger.js';
+import { createTUI } from './tui.js';
 
-const logger = createLogger();
+// Logger — starts as plain console, swapped to TUI sink on startup if TTY
+let logImpl = createLogger();
+const logger = {
+  log: (...args) => logImpl.log(...args),
+  error: (...args) => logImpl.error(...args),
+};
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
+const startTime = Date.now();
 
 function getArg(name, defaultVal) {
   const idx = process.argv.indexOf(name);
@@ -516,27 +523,23 @@ wss.on('connection', (ws, req) => {
   serverLua.exposeShips();
 });
 
-// --- REPL ---
-httpServer.listen(PORT, () => {
-  logger.log('info', { text: 'Spacewar server listening on:' });
-  logger.log('info', { text: `  Local:  http://localhost:${PORT}` });
-  if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
-    logger.log('info', { text: `  World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}` });
+// --- Shared REPL input handler ---
+function handleREPLInput(code) {
+  const { output, configDirty } = serverLua.runLuaREPL(code);
+
+  for (const line of output) {
+    logger.log('info', { text: line });
   }
 
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      if (net.family === 'IPv4' && !net.internal) {
-        logger.log('info', { text: `  LAN:    http://${net.address}:${PORT}` });
-      }
-    }
+  if (configDirty) {
+    const updates = ships.map(s => ({ id: s.id, ...s.config }));
+    lastLuaUpdate = updates;
+    broadcastAll({ type: 'luaUpdate', updates });
   }
+}
 
-  if (process.argv.includes('--tunnel')) {
-    startTunnel();
-  }
-
+// --- Readline fallback for non-TTY ---
+function setupReadlineREPL() {
   logger.log('info', { text: '\nType Lua commands below. help() for reference.\n' });
 
   const rl = createInterface({
@@ -555,26 +558,64 @@ httpServer.listen(PORT, () => {
       rl.prompt();
       return;
     }
-
-    const { output, configDirty } = serverLua.runLuaREPL(code);
-
-    for (const line of output) {
-      logger.log('info', { text: line });
-    }
-
-    // Broadcast config changes to clients
-    if (configDirty) {
-      const updates = ships.map(s => ({ id: s.id, ...s.config }));
-      lastLuaUpdate = updates;
-      broadcastAll({ type: 'luaUpdate', updates });
-    }
-
+    handleREPLInput(code);
     rl.prompt();
   });
 
   rl.on('close', () => {
     process.exit(0);
   });
+}
+
+// --- Startup ---
+httpServer.listen(PORT, () => {
+  // Set up TUI or fallback to readline
+  if (process.stdout.isTTY) {
+    const tui = createTUI({
+      getGameState: () => ({
+        players: [
+          ...[...players.values()].map(p => ({ id: p.id, name: p.name })),
+          ...[...aiIds.entries()].map(([aiId]) => ({
+            id: aiId,
+            name: ships.find(s => s.id === aiId)?.name || `Bot ${aiId + 1}`,
+            isAI: true,
+          })),
+        ],
+        scores: [...scores.entries()],
+        latencies: [...playerLatencies.entries()],
+        gameSpeed: serverGameSpeed,
+        maxPlayers: MAX_PLAYERS,
+        uptime: Math.floor((Date.now() - startTime) / 1000),
+      }),
+      onInput: handleREPLInput,
+      onExit: () => process.exit(0),
+    });
+    logImpl = createLogger(tui);
+    // Route stray console output through the TUI
+    console.log = (...args) => tui.log('info', args.join(' '));
+    console.error = (...args) => tui.error('info', args.join(' '));
+  } else {
+    setupReadlineREPL();
+  }
+
+  logger.log('info', { text: 'Spacewar server listening on:' });
+  logger.log('info', { text: `  Local:  http://localhost:${PORT}` });
+  if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
+    logger.log('info', { text: `  World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}` });
+  }
+
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        logger.log('info', { text: `  LAN:    http://${net.address}:${PORT}` });
+      }
+    }
+  }
+
+  if (process.argv.includes('--tunnel')) {
+    startTunnel();
+  }
 });
 
 async function startTunnel() {
