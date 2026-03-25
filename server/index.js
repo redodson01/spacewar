@@ -1,6 +1,6 @@
 import { createServer } from 'http';
 import { readFile } from 'fs/promises';
-import { join, extname } from 'path';
+import { join, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 import { createInterface } from 'readline';
@@ -10,7 +10,7 @@ import { getAIActions } from '../src/ai.js';
 import { updateShip, destroyShip, tickRespawn, tickInvulnerable } from '../src/ship.js';
 import { PROJECTILE_DEFAULTS, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
 import { checkShipProjectileCollision, checkShipShipCollision } from '../src/collision.js';
-import { computeSpawnPositions } from '../src/world.js';
+import { computeSpawnPositions, PLAYER_COLORS, MAX_PLAYERS } from '../src/world.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -32,8 +32,7 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
 };
 
-const COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900', '#2aa198', '#d33682', '#cb4b16', '#6c71c4'];
-const MAX_PLAYERS = 8;
+const COLORS = PLAYER_COLORS;
 
 // Player management
 const players = new Map(); // ws -> { id, color, name }
@@ -265,13 +264,12 @@ setInterval(() => {
 const httpServer = createServer(async (req, res) => {
   let filePath = req.url === '/' ? '/index.html' : req.url;
 
-  if (filePath.includes('..')) {
+  const fullPath = resolve(ROOT, filePath.slice(1));
+  if (!fullPath.startsWith(ROOT + '/')) {
     res.writeHead(403);
     res.end();
     return;
   }
-
-  const fullPath = join(ROOT, filePath);
   const ext = extname(fullPath);
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
@@ -286,6 +284,9 @@ const httpServer = createServer(async (req, res) => {
 });
 
 // --- WebSocket server ---
+const RATE_LIMIT_WINDOW = 1000; // 1 second
+const RATE_LIMIT_MAX = 120;     // max messages per window
+
 const wss = new WebSocketServer({ server: httpServer });
 
 wss.on('connection', (ws, req) => {
@@ -300,6 +301,11 @@ wss.on('connection', (ws, req) => {
   const color = COLORS[id];
   players.set(ws, { id, color, name });
   scores.set(id, 0);
+
+  // Per-client rate limiting
+  let msgCount = 0;
+  let windowStart = Date.now();
+  let warned = false;
 
   // Track ship on server
   const ship = findOrCreateShip(id);
@@ -335,6 +341,22 @@ wss.on('connection', (ws, req) => {
   broadcast(ws, { type: 'join', id, name });
 
   ws.on('message', (raw) => {
+    // Rate limiting
+    const now = Date.now();
+    if (now - windowStart >= RATE_LIMIT_WINDOW) {
+      msgCount = 0;
+      windowStart = now;
+      warned = false;
+    }
+    msgCount++;
+    if (msgCount > RATE_LIMIT_MAX) {
+      if (!warned) {
+        warned = true;
+        logger.log('rate-limit', { name, id });
+      }
+      return;
+    }
+
     const str = raw.toString();
 
     try {
@@ -351,8 +373,9 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // Handle Lua execution from client editor/REPL
+      // Handle Lua execution from client editor/REPL (host only)
       if (msg.type === 'luaExec') {
+        if (id !== 0) return;
         if (msg.mode === 'reset') {
           serverLua.reset();
           return;
@@ -380,12 +403,29 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // Relay game messages to other clients
+      // Drop messages where the sender claims a ship ID they don't own
+      if ('id' in msg && msg.id !== id && aiIds.get(msg.id) !== ws) {
+        return;
+      }
+
+      // Validate nameChange ownership and enforce max name length
+      if (msg.type === 'nameChange') {
+        const player = players.get(ws);
+        if (!player || msg.playerId !== player.id) return;
+        if (typeof msg.newName !== 'string' || msg.newName.length > 30) return;
+      }
+
+      // Restrict luaUpdate to host (matches luaExec restriction)
+      if (msg.type === 'luaUpdate' && id !== 0) return;
+
+      // Only relay known message types to other clients
+      const relayTypes = ['state', 'fire', 'death', 'respawn', 'aiJoin', 'aiLeave', 'luaUpdate', 'chat', 'nameChange'];
+      if (!relayTypes.includes(msg.type)) return;
       broadcast(ws, str);
 
       // Update server-side ship state from client state messages
       if (msg.type === 'state') {
-        const s = ships.find(s => s.id === msg.id);
+        const s = ships.find(sh => sh.id === msg.id);
         if (s) {
           s.state.x = msg.x; s.state.y = msg.y; s.state.angle = msg.angle;
           s.state.vx = msg.vx; s.state.vy = msg.vy;
@@ -395,7 +435,7 @@ wss.on('connection', (ws, req) => {
 
       // Track client projectiles for server AI dodging
       if (msg.type === 'fire') {
-        const s = ships.find(s => s.id === msg.id);
+        const s = ships.find(sh => sh.id === msg.id);
         if (s) {
           serverProjectiles.push({
             x: msg.x + Math.cos(msg.angle) * (s.config?.radius || 20),
@@ -414,7 +454,7 @@ wss.on('connection', (ws, req) => {
         lastLuaUpdate = msg.updates;
         // Sync config to server ships
         for (const u of msg.updates) {
-          const s = ships.find(s => s.id === u.id);
+          const s = ships.find(sh => sh.id === u.id);
           if (s) {
             Object.assign(s.config, u);
             delete s.config.id;
@@ -423,11 +463,8 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'nameChange') {
-        const player = players.get(ws);
-        if (player && msg.playerId === player.id) {
-          player.name = msg.newName;
-        }
-        const s = ships.find(s => s.id === msg.playerId);
+        players.get(ws).name = msg.newName;
+        const s = ships.find(sh => sh.id === msg.playerId);
         if (s) s.name = msg.newName;
       }
 
@@ -442,6 +479,7 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'aiLeave') {
+        if (aiIds.get(msg.aiId) !== ws) return;
         aiIds.delete(msg.aiId);
         scores.delete(msg.aiId);
         removeShip(msg.aiId);
