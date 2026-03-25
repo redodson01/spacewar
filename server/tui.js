@@ -75,8 +75,11 @@ export function createTUI({ getGameState, onInput, onExit }) {
   });
   process.stderr.write = origWrite;
 
-  // Use ANSI color names so the terminal's Solarized palette applies automatically.
-  // ANSI 0=base02, 1=red, 2=green, 3=yellow, 4=blue, 5=magenta, 6=cyan, 7=base2
+  // Use ANSI color numbers for Solarized compatibility.
+  // Solarized maps: 0=base02, 6=cyan, 10=base01, 14=base1
+  // base1 (ANSI 14) is a medium gray visible on both light and dark backgrounds.
+  const BORDER = 14;  // base1
+  const ACCENT = 'cyan';
 
   // Log panel (left)
   const logBox = blessed.log({
@@ -88,13 +91,13 @@ export function createTUI({ getGameState, onInput, onExit }) {
     bottom: 3,
     border: { type: 'line' },
     style: {
-      border: { fg: 'black' },
-      label: { fg: 'cyan' },
+      border: { fg: BORDER },
+      label: { fg: ACCENT },
     },
     tags: true,
     scrollable: true,
     alwaysScroll: true,
-    scrollbar: { style: { bg: 'black' } },
+    scrollbar: { style: { bg: BORDER } },
     mouse: true,
   });
 
@@ -108,8 +111,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     height: '60%',
     border: { type: 'line' },
     style: {
-      border: { fg: 'black' },
-      label: { fg: 'cyan' },
+      border: { fg: BORDER },
+      label: { fg: ACCENT },
     },
     tags: true,
   });
@@ -124,8 +127,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     bottom: 3,
     border: { type: 'line' },
     style: {
-      border: { fg: 'black' },
-      label: { fg: 'cyan' },
+      border: { fg: BORDER },
+      label: { fg: ACCENT },
     },
     tags: true,
   });
@@ -139,7 +142,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
     height: 3,
     border: { type: 'line' },
     style: {
-      border: { fg: 'black' },
+      border: { fg: BORDER },
     },
     label: ' lua> ',
     inputOnFocus: true,
@@ -218,7 +221,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
       const endTag = p.isAI ? '{/magenta-fg}' : '{/green-fg}';
       playerLines.push(`${tag}${p.name || 'Player ' + (p.id + 1)}${endTag}  ${pts}  ${ms}`);
     }
-    playerBox.setContent(playerLines.join('\n') || '{gray-fg}No players{/gray-fg}');
+    playerBox.setContent(playerLines.join('\n') || '{14-fg}No players{/14-fg}');
 
     // Stats
     const minutes = Math.floor(state.uptime / 60);
