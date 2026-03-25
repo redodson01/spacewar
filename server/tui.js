@@ -15,12 +15,14 @@ const EVENT_COLORS = {
   ai:        'magenta',
   'ws-error':'red',
   tunnel:    'blue',
-  info:      'white',
+  info:      null, // use terminal default
 };
 
 export function colorize(event, text) {
-  const color = EVENT_COLORS[event] || 'white';
   const escaped = text.replace(/\{/g, '{open}');
+  const color = EVENT_COLORS[event];
+  if (color === null) return escaped; // no color wrapping — use terminal default
+  if (!color) return `{white-fg}${escaped}{/white-fg}`; // unknown events
   const bold = event === 'ws-error' ? '{bold}' : '';
   const unbold = bold ? '{/bold}' : '';
   return `{${color}-fg}${bold}${escaped}${unbold}{/${color}-fg}`;

@@ -22,6 +22,10 @@ describe('colorize', () => {
     expect(colorize('ws-error', '[ws] error')).toBe('{red-fg}{bold}[ws] error{/bold}{/red-fg}');
   });
 
+  it('uses terminal default for info events', () => {
+    expect(colorize('info', 'Server listening')).toBe('Server listening');
+  });
+
   it('defaults to white for unknown events', () => {
     expect(colorize('unknown', 'text')).toBe('{white-fg}text{/white-fg}');
   });
