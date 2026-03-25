@@ -146,7 +146,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     style: {
       border: { fg: BORDER },
     },
-    label: ' lua> ',
+    label: ` {${ACCENT}-fg}Lua{/${ACCENT}-fg} `,
+    tags: true,
     inputOnFocus: true,
   });
 
@@ -154,40 +155,41 @@ export function createTUI({ getGameState, onInput, onExit }) {
   const history = new InputHistory();
   let currentInput = '';
 
+  const PROMPT = '> ';
+
   function activateInput() {
+    inputBox.setValue(PROMPT);
     inputBox.focus();
     inputBox.readInput(() => {});
   }
 
   inputBox.on('submit', (value) => {
-    const line = (value || '').trim();
+    const line = (value || '').replace(/^> /, '').trim();
     if (line) {
       history.add(line);
       onInput(line);
     }
-    inputBox.clearValue();
     screen.render();
     activateInput();
   });
 
   inputBox.on('cancel', () => {
-    inputBox.clearValue();
     screen.render();
     activateInput();
   });
 
   inputBox.key('up', () => {
-    if (inputBox.value && history.index === history.entries.length) {
-      currentInput = inputBox.value;
+    if (inputBox.value !== PROMPT && history.index === history.entries.length) {
+      currentInput = inputBox.value.replace(/^> /, '');
     }
     const prev = history.up();
-    inputBox.setValue(prev);
+    inputBox.setValue(PROMPT + prev);
     screen.render();
   });
 
   inputBox.key('down', () => {
     const next = history.down();
-    inputBox.setValue(next || currentInput);
+    inputBox.setValue(PROMPT + (next || currentInput));
     if (history.index === history.entries.length) currentInput = '';
     screen.render();
   });
