@@ -90,7 +90,8 @@ function broadcastScores() {
   broadcastAll({ type: 'scores', scores: [...scores.entries()].map(([id, score]) => ({ id, score })) });
 }
 
-// --- Server Lua context ---
+// --- Server state ---
+const serverProjectiles = [];
 let serverGameSpeed = 1.0;
 
 const serverLua = createServerLua(ships, serverProjectiles, {
@@ -148,7 +149,6 @@ const serverLua = createServerLua(ships, serverProjectiles, {
 serverLua.exposeScreen(WORLD_WIDTH, WORLD_HEIGHT);
 
 // --- Server-side AI game loop (uses same modules as client) ---
-const serverProjectiles = [];
 const SEND_INTERVAL = 50; // 20Hz
 const lastAISendTimes = new Map();
 
