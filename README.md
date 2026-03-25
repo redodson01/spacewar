@@ -118,6 +118,7 @@ src/
   ai.js                AI decision logic for computer players (shared by client + server)
   world.js             World dimensions, player colors, spawn positions
   lua-integration.js   Fengari/Lua bridge
+  ship-proxy.js        Shared ship config/state Proxy for Lua scripts
   editor.js            Script editor panel UI
   leaderboard.js       Score tracking and display
   chat.js              In-game chat messages and rendering
