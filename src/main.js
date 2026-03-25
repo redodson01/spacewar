@@ -108,10 +108,10 @@ let appendOutput = (text, isError) => {
 // Lua context — starts as local, swaps to network relay on connect
 let luaImpl;
 try {
-  luaImpl = createLuaContext(fengari, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaImpl = createLuaContext(fengari, ships, projectiles, explosions, (text, isError) => appendOutput(text, isError));
 } catch (e) {
   console.error('Lua init failed:', e);
-  luaImpl = createLuaContext(null, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaImpl = createLuaContext(null, ships, projectiles, explosions, (text, isError) => appendOutput(text, isError));
 }
 // Wrapper so editor/chat can call methods that get redirected after network connect
 const luaCtx = {
@@ -478,7 +478,7 @@ net.connect().then((welcome) => {
   }
 
   // Swap to network Lua relay — server is the authoritative Lua engine
-  luaImpl = createLuaContext(fengari, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError), net);
+  luaImpl = createLuaContext(fengari, ships, projectiles, explosions, (text, isError) => appendOutput(text, isError), net);
 
   showHelpInChat();
   startGame();
