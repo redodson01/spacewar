@@ -12,6 +12,7 @@ import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
 import { loadName, saveName, loadChatHistory, saveChatHistory } from './storage.js';
+import { runCommand } from './commands.js';
 
 // Canvas
 const canvas = document.getElementById('game');
@@ -25,7 +26,7 @@ const ships = [];
 let stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
-const input = createInputManager(['script-input', 'repl-input', 'chat-input']);
+const input = createInputManager(['script-input', 'chat-input']);
 input.attach(window);
 const leaderboard = createLeaderboard();
 const chat = createChat();
@@ -86,23 +87,22 @@ function startGame() {
 const elements = {
   editor: document.getElementById('editor'),
   scriptArea: document.getElementById('script-input'),
-  outputDiv: document.getElementById('output'),
-  hintDiv: null,
-  replInput: document.getElementById('repl-input'),
   exampleSelect: document.getElementById('example-select'),
   runBtn: document.getElementById('run-btn'),
-  resetBtn: document.getElementById('reset-btn'),
   clearBtn: document.getElementById('clear-btn'),
   clearDataBtn: document.getElementById('clear-data-btn'),
-  canvas,
 };
 
 // Lua integration — use fengari from CDN global if available
 const fengari = (typeof globalThis.fengari !== 'undefined') ? globalThis.fengari : null;
 
-let appendOutput = (text, isError) => {
-  if (isError) console.error(text);
-  else console.log(text);
+const appendOutput = (text, isError) => {
+  if (text.startsWith('> ')) return; // skip REPL echo lines
+  const color = isError ? '#dc322f' : '#2aa198';
+  chat.addMessage('', color, text);
+  if (networkMode && net.isConnected) {
+    net.sendChat('', color, text, 'lua');
+  }
 };
 
 // Lua context — starts as local, swaps to network relay on connect
@@ -129,14 +129,7 @@ const luaCtx = {
   broadcastShipUpdates() { luaImpl.broadcastShipUpdates(); },
 };
 
-const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
-  for (const ship of ships) {
-    resetShip(ship);
-  }
-  projectiles.length = 0;
-  explosions.length = 0;
-}, () => input.clear(), () => !networkMode || net.localId === 0);
-appendOutput = editorAPI.appendOutput;
+createEditor(elements, luaCtx, () => input.clear(), () => !networkMode || net.localId === 0);
 
 window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;
@@ -239,15 +232,7 @@ net.onChat((name, color, text) => {
 });
 
 function showHelpInChat() {
-  const hint = '#586e75'; // Solarized base01
-  if (networkMode) {
-    chat.addMessage('', hint, 'WASD / Arrows + Space to shoot | Enter to chat | /help for help');
-    if (net.localId === 0) {
-      chat.addMessage('', hint, 'Host: ` for editor | /command to run Lua');
-    }
-  } else {
-    chat.addMessage('', hint, 'P1: WASD + Space | Press / for P2 to join | ` for editor');
-  }
+  runCommand('help', '', { chat, luaCtx, net, networkMode, isHost: !networkMode || net.localId === 0 });
 }
 
 // P2 joins local game on first Slash press
@@ -265,7 +250,7 @@ const chatHistory = loadChatHistory();
 let chatHistoryIdx = chatHistory.length;
 
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Enter' && !chatOpen && networkMode && e.target === document.body) {
+  if (e.code === 'Enter' && !chatOpen && e.target === document.body) {
     e.preventDefault();
     chatOpen = true;
     chatBar.classList.add('open');
@@ -284,26 +269,24 @@ chatInput.addEventListener('keydown', (e) => {
         saveChatHistory(chatHistory);
       }
       chatHistoryIdx = chatHistory.length;
-      if (text === '/help') {
-        showHelpInChat();
-      } else if (text.startsWith('/')) {
-        if (!networkMode || net.localId === 0) {
-          // Run as Lua command — output goes to editor, chat, and network
-          const origAppendOutput = appendOutput;
-          const chatOutputs = [];
-          appendOutput = (t, isError) => {
-            origAppendOutput(t, isError);
-            if (!t.startsWith('> ')) chatOutputs.push({ text: t, isError });
-          };
-          luaCtx.runLuaREPL(text.slice(1));
-          appendOutput = origAppendOutput;
-          for (const o of chatOutputs) {
-            const color = o.isError ? '#dc322f' : '#2aa198';
-            chat.addMessage('', color, o.text);
-            if (!o.isError) net.sendChat('', color, o.text);
+      if (text.startsWith('/')) {
+        const spaceIdx = text.indexOf(' ', 1);
+        const cmdName = spaceIdx > 0 ? text.slice(1, spaceIdx) : text.slice(1);
+        const cmdArgs = spaceIdx > 0 ? text.slice(spaceIdx + 1) : '';
+        const localShip = ships.find(s => s.isLocal);
+        const ctx = {
+          chat, luaCtx, net, networkMode,
+          isHost: !networkMode || net.localId === 0,
+          localShip,
+          saveName: (name) => saveName(name, localShip?.id),
+        };
+        if (!runCommand(cmdName, cmdArgs, ctx)) {
+          // Not a registered command — treat as Lua REPL
+          if (!networkMode || net.localId === 0) {
+            luaCtx.runLuaREPL(text.slice(1));
+          } else {
+            chat.addMessage('', '#dc322f', 'Only the host can run Lua commands.');
           }
-        } else {
-          chat.addMessage('', '#dc322f', 'Only the host can run /commands.');
         }
       } else {
         const localShip = ships.find(s => s.isLocal);

@@ -180,8 +180,10 @@ export function createNetClient() {
     send({ type: 'luaUpdate', updates });
   }
 
-  function sendChat(name, color, text) {
-    send({ type: 'chat', name, color, text });
+  function sendChat(name, color, text, kind) {
+    const msg = { type: 'chat', name, color, text };
+    if (kind) msg.kind = kind;
+    send(msg);
   }
 
   function sendNameChange(playerId, newName) {

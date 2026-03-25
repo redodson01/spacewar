@@ -11,7 +11,7 @@ describe('createInputManager', () => {
   let input;
 
   beforeEach(() => {
-    input = createInputManager(['script-input', 'repl-input']);
+    input = createInputManager(['script-input', 'chat-input']);
     input.attach(window);
   });
 
@@ -35,8 +35,8 @@ describe('createInputManager', () => {
     expect(input.keys['KeyA']).toBeUndefined();
   });
 
-  it('ignores keydown from REPL input', () => {
-    fireKey(window, 'keydown', 'KeyA', { targetId: 'repl-input' });
+  it('ignores keydown from chat input', () => {
+    fireKey(window, 'keydown', 'KeyA', { targetId: 'chat-input' });
     expect(input.keys['KeyA']).toBeUndefined();
   });
 
