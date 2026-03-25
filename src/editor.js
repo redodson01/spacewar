@@ -1,4 +1,4 @@
-import { loadReplHistory, saveReplHistory, loadScript, saveScript, clearAll, MAX_REPL_HISTORY } from './storage.js';
+import { loadScript, saveScript, clearAll } from './storage.js';
 
 export const EXAMPLES = {
   color: `-- Change the ship color
@@ -42,32 +42,18 @@ end
 print("Orbiting...")`,
 };
 
-export function createEditor({ editor, scriptArea, outputDiv, replInput, exampleSelect, runBtn, resetBtn, clearBtn, clearDataBtn }, luaCtx, ship, resetShipFn, clearInputFn, canOpenEditor = () => true) {
+export function createEditor({ editor, scriptArea, exampleSelect, runBtn, clearBtn, clearDataBtn }, luaCtx, clearInputFn, canOpenEditor = () => true) {
   let editorOpen = false;
-  let lastEditorFocus = null;
 
   function toggleEditor() {
     editorOpen = !editorOpen;
     editor.classList.toggle('open', editorOpen);
     if (editorOpen) {
       clearInputFn();
-      (lastEditorFocus || replInput).focus();
+      scriptArea.focus();
     } else {
       document.activeElement.blur();
     }
-  }
-
-  const MAX_OUTPUT_LINES = 500;
-
-  function appendOutput(text, isError) {
-    const line = document.createElement('div');
-    if (isError) line.className = 'output-error';
-    line.textContent = text;
-    outputDiv.appendChild(line);
-    while (outputDiv.children.length > MAX_OUTPUT_LINES) {
-      outputDiv.removeChild(outputDiv.firstChild);
-    }
-    outputDiv.scrollTop = outputDiv.scrollHeight;
   }
 
   // Global keyboard shortcuts
@@ -84,17 +70,13 @@ export function createEditor({ editor, scriptArea, outputDiv, replInput, example
       e.preventDefault();
       luaCtx.runLua(scriptArea.value);
     }
-    if ((e.ctrlKey || e.metaKey) && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+    if ((e.ctrlKey || e.metaKey) && ['ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
       e.preventDefault();
       if (e.code === 'ArrowUp' && editorOpen) {
         scriptArea.focus();
-        lastEditorFocus = scriptArea;
-      } else if (e.code === 'ArrowDown' && editorOpen) {
-        replInput.focus();
-        lastEditorFocus = replInput;
       } else if (e.code === 'ArrowRight') {
         if (!editorOpen && canOpenEditor()) toggleEditor();
-        else if (editorOpen) (lastEditorFocus || replInput).focus();
+        else if (editorOpen) scriptArea.focus();
       } else if (e.code === 'ArrowLeft') {
         document.activeElement.blur();
         if (editorOpen) toggleEditor();
@@ -118,7 +100,7 @@ export function createEditor({ editor, scriptArea, outputDiv, replInput, example
   // Script textarea
   scriptArea.addEventListener('keydown', e => {
     if (e.code === 'Backquote' || e.code === 'Escape') return;
-    if ((e.ctrlKey || e.metaKey) && ['Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) return;
+    if ((e.ctrlKey || e.metaKey) && ['Enter', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.code)) return;
     if (e.code === 'Tab') {
       e.preventDefault();
       const start = scriptArea.selectionStart;
@@ -129,72 +111,16 @@ export function createEditor({ editor, scriptArea, outputDiv, replInput, example
   });
   scriptArea.addEventListener('keyup', e => e.stopPropagation());
 
-  // REPL input — restore history from localStorage
-  const replHistory = loadReplHistory();
-  let replHistoryIdx = replHistory.length;
-  let historyTimeout = null;
-  function debouncedSaveHistory() {
-    clearTimeout(historyTimeout);
-    historyTimeout = setTimeout(() => saveReplHistory(replHistory), 300);
-  }
-
-  replInput.addEventListener('keydown', e => {
-    if (e.code === 'Backquote' || e.code === 'Escape') return;
-    if ((e.ctrlKey || e.metaKey) && ['Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) return;
-    if (e.code === 'Enter') {
-      e.preventDefault();
-      const line = replInput.value.trim();
-      if (line) {
-        if (replHistory[replHistory.length - 1] !== line) {
-          replHistory.push(line);
-          if (replHistory.length > MAX_REPL_HISTORY) {
-            replHistory.splice(0, replHistory.length - MAX_REPL_HISTORY);
-          }
-          debouncedSaveHistory();
-        }
-        replHistoryIdx = replHistory.length;
-        luaCtx.runLuaREPL(line);
-      }
-      replInput.value = '';
-    } else if (e.code === 'ArrowUp') {
-      e.preventDefault();
-      if (replHistoryIdx > 0) {
-        replHistoryIdx--;
-        replInput.value = replHistory[replHistoryIdx];
-      }
-    } else if (e.code === 'ArrowDown') {
-      e.preventDefault();
-      if (replHistoryIdx < replHistory.length - 1) {
-        replHistoryIdx++;
-        replInput.value = replHistory[replHistoryIdx];
-      } else {
-        replHistoryIdx = replHistory.length;
-        replInput.value = '';
-      }
-    }
-    e.stopPropagation();
-  });
-  replInput.addEventListener('keyup', e => e.stopPropagation());
-
-  // Prevent editor buttons from stealing keyboard focus so that
-  // spacebar (shoot) doesn't inadvertently activate a button.
-  for (const btn of [runBtn, resetBtn, clearBtn, clearDataBtn]) {
+  // Prevent editor buttons from stealing keyboard focus
+  for (const btn of [runBtn, clearBtn, clearDataBtn]) {
     btn.addEventListener('mousedown', e => e.preventDefault());
   }
 
   // Buttons
   runBtn.addEventListener('click', () => luaCtx.runLua(scriptArea.value));
-  resetBtn.addEventListener('click', () => {
-    resetShipFn();
-    luaCtx.reset();
-    appendOutput('Ship reset to defaults.');
-  });
-  clearBtn.addEventListener('click', () => { outputDiv.innerHTML = ''; });
+  clearBtn.addEventListener('click', () => { scriptArea.value = ''; });
   clearDataBtn.addEventListener('click', () => {
     clearAll();
-    replHistory.length = 0;
-    replHistoryIdx = 0;
-    appendOutput('Saved data cleared.');
   });
 
   // Examples dropdown
@@ -206,5 +132,5 @@ export function createEditor({ editor, scriptArea, outputDiv, replInput, example
     }
   });
 
-  return { toggleEditor, appendOutput };
+  return { toggleEditor };
 }

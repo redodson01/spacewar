@@ -25,7 +25,7 @@ const ships = [];
 let stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
-const input = createInputManager(['script-input', 'repl-input', 'chat-input']);
+const input = createInputManager(['script-input', 'chat-input']);
 input.attach(window);
 const leaderboard = createLeaderboard();
 const chat = createChat();
@@ -86,15 +86,10 @@ function startGame() {
 const elements = {
   editor: document.getElementById('editor'),
   scriptArea: document.getElementById('script-input'),
-  outputDiv: document.getElementById('output'),
-  hintDiv: null,
-  replInput: document.getElementById('repl-input'),
   exampleSelect: document.getElementById('example-select'),
   runBtn: document.getElementById('run-btn'),
-  resetBtn: document.getElementById('reset-btn'),
   clearBtn: document.getElementById('clear-btn'),
   clearDataBtn: document.getElementById('clear-data-btn'),
-  canvas,
 };
 
 // Lua integration — use fengari from CDN global if available
@@ -129,14 +124,7 @@ const luaCtx = {
   broadcastShipUpdates() { luaImpl.broadcastShipUpdates(); },
 };
 
-const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
-  for (const ship of ships) {
-    resetShip(ship);
-  }
-  projectiles.length = 0;
-  explosions.length = 0;
-}, () => input.clear(), () => !networkMode || net.localId === 0);
-appendOutput = editorAPI.appendOutput;
+createEditor(elements, luaCtx, () => input.clear(), () => !networkMode || net.localId === 0);
 
 window.addEventListener('resize', () => {
   canvas.width = window.innerWidth;

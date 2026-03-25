@@ -47,16 +47,15 @@ Both WASD and arrow keys work. Space to shoot.
 | `` ` `` (backtick) | Toggle script editor |
 | Escape | Close script editor |
 | Ctrl/Cmd+Enter | Run full script |
-| Ctrl/Cmd+Up / Ctrl/Cmd+Down | Switch focus: script editor / REPL |
 | Ctrl/Cmd+Left / Ctrl/Cmd+Right | Switch focus: game / editor panel |
 
 ## Lua Scripting
 
-Press backtick to open the editor. A single-line REPL is at the bottom for quick commands; the textarea above is for multi-line scripts.
+Press backtick to open the script editor. Use chat `/commands` for quick Lua execution (e.g., `/ship.color="#ff0"`).
 
 ### API
 
-Type `help()` in the REPL for the full reference. Summary:
+Type `/help` in chat for commands, or `/help()` for the full Lua API reference. Summary:
 
 | Global | Description |
 |---|---|
@@ -119,6 +118,7 @@ src/
   world.js             World dimensions, player colors, spawn positions
   lua-integration.js   Fengari/Lua bridge
   ship-proxy.js        Shared ship config/state Proxy for Lua scripts
+  commands.js          Chat command registry (/help, /name, /ai, etc.)
   editor.js            Script editor panel UI
   leaderboard.js       Score tracking and display
   chat.js              In-game chat messages and rendering
@@ -127,6 +127,7 @@ src/
 server/
   index.js             Multiplayer WebSocket server with Lua REPL
   lua.js               Server-side Fengari Lua context
+  logger.js            Structured event logger
 tests/
   ship.test.js             Ship physics unit tests
   projectiles.test.js      Projectile system unit tests
@@ -143,6 +144,7 @@ tests/
   server-lua.test.js       Server Lua context unit tests
   storage.test.js          Storage persistence unit tests
   editor.test.js           Editor storage integration tests
+  commands.test.js         Command registry unit tests
 ```
 
 ### Server Console
