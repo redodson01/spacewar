@@ -63,11 +63,15 @@ export class InputHistory {
 // --- TUI factory ---
 
 export function createTUI({ getGameState, onInput, onExit }) {
+  // Suppress neo-blessed tput warnings during screen init (e.g., Setulc parse errors)
+  const origWrite = process.stderr.write;
+  process.stderr.write = () => true;
   const screen = blessed.screen({
     smartCSR: true,
     title: 'Spacewar Server',
     fullUnicode: true,
   });
+  process.stderr.write = origWrite;
 
   // Log panel (left)
   const logBox = blessed.log({
