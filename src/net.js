@@ -18,6 +18,7 @@ export function createNetClient() {
     chat: null,
     nameChange: null,
     gameSpeed: null,
+    luaOutput: null,
   };
 
   function connect() {
@@ -87,6 +88,9 @@ export function createNetClient() {
             break;
           case 'gameSpeed':
             if (callbacks.gameSpeed) callbacks.gameSpeed(msg.speed);
+            break;
+          case 'luaOutput':
+            if (callbacks.luaOutput) callbacks.luaOutput(msg.text, msg.isError);
             break;
         }
       };
@@ -174,6 +178,10 @@ export function createNetClient() {
     send({ type: 'nameChange', playerId, newName });
   }
 
+  function sendLuaExec(code, mode) {
+    send({ type: 'luaExec', code, mode });
+  }
+
   return {
     connect,
     disconnect,
@@ -184,6 +192,7 @@ export function createNetClient() {
     sendLuaUpdate,
     sendChat,
     sendNameChange,
+    sendLuaExec,
     sendAIJoin,
     sendAILeave,
     get isConnected() { return connected; },
@@ -200,6 +209,7 @@ export function createNetClient() {
     onNameChange(cb) { callbacks.nameChange = cb; },
     onStateOverride(cb) { callbacks.stateOverride = cb; },
     onGameSpeed(cb) { callbacks.gameSpeed = cb; },
+    onLuaOutput(cb) { callbacks.luaOutput = cb; },
   };
 }
 

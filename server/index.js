@@ -93,7 +93,7 @@ function broadcastScores() {
 // --- Server Lua context ---
 let serverGameSpeed = 1.0;
 
-const serverLua = createServerLua(ships, {
+const serverLua = createServerLua(ships, serverProjectiles, {
   onStateWrite(id, prop, value) {
     // Broadcast state override to all clients
     broadcastAll({ type: 'stateOverride', targetId: id, [prop]: value });
@@ -132,6 +132,17 @@ const serverLua = createServerLua(ships, {
     serverGameSpeed = speed;
     broadcastAll({ type: 'gameSpeed', speed });
   },
+  onShoot(ship) {
+    if (fireProjectile(serverProjectiles, ship)) {
+      const s = ship.state;
+      broadcastAll({ type: 'fire', id: ship.id, x: s.x, y: s.y, angle: s.angle, vx: s.vx, vy: s.vy });
+    }
+  },
+  onOutput(text, _isError) {
+    console.log(`[lua] ${text}`);
+  },
+  getWorldWidth() { return WORLD_WIDTH; },
+  getWorldHeight() { return WORLD_HEIGHT; },
 });
 
 serverLua.exposeScreen(WORLD_WIDTH, WORLD_HEIGHT);
@@ -188,6 +199,14 @@ setInterval(() => {
         thrusting: s.thrusting, destroyed: s.destroyed,
       });
     }
+  }
+
+  // Run Lua onUpdate callback
+  const luaResult = serverLua.callLuaUpdate(dt);
+  if (luaResult.configDirty) {
+    const updates = ships.map(s => ({ id: s.id, ...s.config }));
+    lastLuaUpdate = updates;
+    broadcastAll({ type: 'luaUpdate', updates });
   }
 
   // Update projectiles (same function as client)
@@ -310,6 +329,31 @@ wss.on('connection', (ws, req) => {
 
     try {
       const msg = JSON.parse(str);
+
+      // Handle Lua execution from client editor/REPL
+      if (msg.type === 'luaExec') {
+        let result;
+        if (msg.mode === 'run') {
+          result = serverLua.runLua(msg.code);
+        } else {
+          result = serverLua.runLuaREPL(msg.code);
+        }
+        // Send output back to the requesting client
+        for (const line of result.output) {
+          ws.send(JSON.stringify({ type: 'luaOutput', text: line, isError: line.startsWith('Error:') }));
+        }
+        // Broadcast config changes
+        if (result.configDirty) {
+          const updates = ships.map(s => ({ id: s.id, ...s.config }));
+          lastLuaUpdate = updates;
+          broadcastAll({ type: 'luaUpdate', updates });
+        }
+        // Log to server console
+        for (const line of result.output) {
+          if (!line.startsWith('> ')) console.log(`[lua] ${line}`);
+        }
+        return; // don't relay luaExec to other clients
+      }
 
       // Update server-side ship state from client state messages
       if (msg.type === 'state') {
@@ -467,7 +511,7 @@ httpServer.listen(PORT, () => {
       return;
     }
 
-    const { output, configDirty } = serverLua.execute(code);
+    const { output, configDirty } = serverLua.runLuaREPL(code);
 
     for (const line of output) {
       console.log(line);
