@@ -1,6 +1,6 @@
 import { createServer } from 'http';
 import { readFile } from 'fs/promises';
-import { join, extname } from 'path';
+import { join, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 import { createInterface } from 'readline';
@@ -10,7 +10,7 @@ import { getAIActions } from '../src/ai.js';
 import { updateShip, destroyShip, tickRespawn, tickInvulnerable } from '../src/ship.js';
 import { PROJECTILE_DEFAULTS, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
 import { checkShipProjectileCollision, checkShipShipCollision } from '../src/collision.js';
-import { computeSpawnPositions } from '../src/world.js';
+import { computeSpawnPositions, PLAYER_COLORS, MAX_PLAYERS } from '../src/world.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -32,8 +32,7 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
 };
 
-const COLORS = ['#dc322f', '#859900', '#268bd2', '#b58900', '#2aa198', '#d33682', '#cb4b16', '#6c71c4'];
-const MAX_PLAYERS = 8;
+const COLORS = PLAYER_COLORS;
 
 // Player management
 const players = new Map(); // ws -> { id, color, name }
@@ -265,13 +264,12 @@ setInterval(() => {
 const httpServer = createServer(async (req, res) => {
   let filePath = req.url === '/' ? '/index.html' : req.url;
 
-  if (filePath.includes('..')) {
+  const fullPath = resolve(ROOT, filePath.slice(1));
+  if (!fullPath.startsWith(ROOT)) {
     res.writeHead(403);
     res.end();
     return;
   }
-
-  const fullPath = join(ROOT, filePath);
   const ext = extname(fullPath);
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
@@ -351,8 +349,9 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // Handle Lua execution from client editor/REPL
+      // Handle Lua execution from client editor/REPL (host only)
       if (msg.type === 'luaExec') {
+        if (id !== 0) return;
         if (msg.mode === 'reset') {
           serverLua.reset();
           return;
@@ -377,6 +376,11 @@ wss.on('connection', (ws, req) => {
         for (const line of result.output) {
           if (!line.startsWith('> ')) console.log(`[lua] ${line}`);
         }
+        return;
+      }
+
+      // Drop messages where the sender claims a ship ID they don't own
+      if ('id' in msg && msg.id !== id && aiIds.get(msg.id) !== ws) {
         return;
       }
 
@@ -441,6 +445,7 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'aiLeave') {
+        if (aiIds.get(msg.aiId) !== ws) return;
         aiIds.delete(msg.aiId);
         scores.delete(msg.aiId);
         removeShip(msg.aiId);

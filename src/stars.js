@@ -7,13 +7,6 @@ export function createStars(width, height, count = 200) {
   }));
 }
 
-export function resizeStars(stars, width, height) {
-  for (const star of stars) {
-    star.x = Math.random() * width;
-    star.y = Math.random() * height;
-  }
-}
-
 export function drawStars(ctx, stars) {
   for (const star of stars) {
     ctx.fillStyle = `rgba(147, 161, 161, ${0.3 + star.brightness * 0.7})`;
