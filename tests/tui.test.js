@@ -14,8 +14,8 @@ describe('colorize', () => {
     expect(colorize('lua', '[lua] output')).toBe('{cyan-fg}[lua] output{/cyan-fg}');
   });
 
-  it('wraps chat events in gray', () => {
-    expect(colorize('chat', '[chat] hi')).toBe('{gray-fg}[chat] hi{/gray-fg}');
+  it('wraps chat events in base00 (ANSI 11)', () => {
+    expect(colorize('chat', '[chat] hi')).toBe('{11-fg}[chat] hi{/11-fg}');
   });
 
   it('wraps ws-error in bold red', () => {

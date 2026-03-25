@@ -5,24 +5,26 @@ import blessed from 'neo-blessed';
 
 // --- Color mapping for log events ---
 
+// Solarized ANSI mapping: 0=base02, 2=green, 3=yellow, 4=blue, 5=magenta,
+// 6=cyan, 11=base00 (muted text), 14=base1 (secondary)
 const EVENT_COLORS = {
   join:      'green',
   leave:     'yellow',
   kill:      'red',
   collision: 'red',
-  chat:      'gray',
+  chat:      11,       // base00 — muted but readable on light and dark
   lua:       'cyan',
   ai:        'magenta',
   'ws-error':'red',
   tunnel:    'blue',
-  info:      null, // use terminal default
+  info:      null,     // use terminal default
 };
 
 export function colorize(event, text) {
   const escaped = text.replace(/\{/g, '{open}');
   const color = EVENT_COLORS[event];
   if (color === null) return escaped; // no color wrapping — use terminal default
-  if (!color) return `{white-fg}${escaped}{/white-fg}`; // unknown events
+  if (color === undefined) return `{white-fg}${escaped}{/white-fg}`; // unknown events
   const bold = event === 'ws-error' ? '{bold}' : '';
   const unbold = bold ? '{/bold}' : '';
   return `{${color}-fg}${bold}${escaped}${unbold}{/${color}-fg}`;
