@@ -100,12 +100,7 @@ const serverLua = createServerLua(ships, serverProjectiles, {
     broadcastAll({ type: 'stateOverride', targetId: id, [prop]: value });
   },
   onAddAI() {
-    let id = -1;
-    for (let i = 0; i < MAX_PLAYERS; i++) {
-      if (![...players.values()].some(p => p.id === i) && !aiIds.has(i) && !ships.find(s => s.id === i)) {
-        id = i; break;
-      }
-    }
+    const id = nextId();
     if (id < 0) return -1;
     const spawn = SPAWN_POSITIONS[id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
     const ship = createLuaShip(id, spawn.x, spawn.y, COLORS[id]);
@@ -262,7 +257,8 @@ setInterval(() => {
 
 // --- HTTP server ---
 const httpServer = createServer(async (req, res) => {
-  let filePath = req.url === '/' ? '/index.html' : req.url;
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  const filePath = pathname === '/' ? '/index.html' : pathname;
 
   const fullPath = resolve(ROOT, filePath.slice(1));
   if (!fullPath.startsWith(ROOT + '/')) {
@@ -513,7 +509,10 @@ wss.on('connection', (ws, req) => {
         const prefix = msg.name ? `${msg.name}: ` : '';
         console.log(`[chat] ${prefix}${msg.text}`);
       }
-    } catch { /* ignore parse errors */ }
+    } catch (e) {
+      if (e instanceof SyntaxError) return; // ignore malformed JSON
+      console.error('[ws] message handler error:', e);
+    }
   });
 
   ws.on('close', () => {

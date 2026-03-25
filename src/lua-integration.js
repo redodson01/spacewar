@@ -351,7 +351,7 @@ function createLocalLuaContext(fengari, ships, projectiles, explosions, appendOu
 
 // --- Factory: choose network or local based on connection ---
 
-export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput, net = null) {
+export function createLuaContext(fengari, ships, projectiles, explosions, appendOutput, net = null) {
   if (net && net.isConnected) {
     return createNetworkLuaContext(net, appendOutput);
   }

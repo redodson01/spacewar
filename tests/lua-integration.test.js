@@ -21,21 +21,16 @@ function makeShip(id = 0) {
   };
 }
 
-function makeCanvas() {
-  return { width: 800, height: 600 };
-}
-
 describe('createLuaContext', () => {
-  let ships, projectiles, explosions, canvas, output, luaCtx;
+  let ships, projectiles, explosions, output, luaCtx;
 
   beforeEach(() => {
     ships = [makeShip(0), makeShip(1)];
     ships[1].config.color = '#00f';
     projectiles = [];
     explosions = [];
-    canvas = makeCanvas();
     output = vi.fn();
-    luaCtx = createLuaContext(fengari, ships, projectiles, explosions, canvas, output);
+    luaCtx = createLuaContext(fengari, ships, projectiles, explosions, output);
   });
 
   it('initializes successfully', () => {
@@ -43,7 +38,7 @@ describe('createLuaContext', () => {
   });
 
   it('returns a not-ready context when fengari is null', () => {
-    const ctx = createLuaContext(null, ships, projectiles, explosions, canvas, output);
+    const ctx = createLuaContext(null, ships, projectiles, explosions, output);
     expect(ctx.isReady).toBe(false);
   });
 
