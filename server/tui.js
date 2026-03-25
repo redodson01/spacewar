@@ -151,9 +151,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     tags: true,
   });
 
-  // Input line (bottom) — use textarea for cursor/arrow key support.
-  // Keep it always in input mode; handle enter/escape/history manually.
-  const inputBox = blessed.textarea({
+  // Input line (bottom) — textbox for single-line input with submit/cancel events.
+  const inputBox = blessed.textbox({
     parent: screen,
     bottom: 0,
     left: 0,
@@ -165,63 +164,52 @@ export function createTUI({ getGameState, onInput, onExit }) {
     },
     label: ` {${ACCENT}-fg}Lua{/${ACCENT}-fg} `,
     tags: true,
-    keys: true,
     inputOnFocus: true,
   });
 
   // --- Input handling ---
   const history = new InputHistory();
   let currentInput = '';
-  const PROMPT = '> ';
 
-  function resetInput(value) {
-    inputBox.setValue(value || PROMPT);
+  function activateInput() {
+    inputBox.setValue('');
+    inputBox.focus();
+    inputBox.readInput(() => {});
     screen.render();
   }
 
-  // Intercept keys before textarea processes them
-  inputBox.on('keypress', (_ch, key) => {
-    if (!key) return;
-
-    if (key.full === 'enter' || key.full === 'return') {
-      const value = inputBox.getValue();
-      const line = (value || '').replace(/^> /, '').replace(/\n/g, '').trim();
-      if (line) {
-        history.add(line);
-        onInput(line);
-      }
-      // Use nextTick to reset after textarea processes the key
-      process.nextTick(() => resetInput());
-      return;
+  inputBox.on('submit', (value) => {
+    const line = (value || '').trim();
+    if (line) {
+      history.add(line);
+      onInput(line);
     }
+    setTimeout(activateInput, 0);
+  });
 
-    if (key.full === 'escape') {
-      process.nextTick(() => resetInput());
-      return;
-    }
+  inputBox.on('cancel', () => {
+    setTimeout(activateInput, 0);
+  });
 
-    if (key.full === 'up') {
-      const cur = inputBox.getValue().replace(/^> /, '').replace(/\n/g, '');
-      if (cur && history.index === history.entries.length) {
-        currentInput = cur;
-      }
-      const prev = history.up();
-      process.nextTick(() => resetInput(PROMPT + prev));
-      return;
+  inputBox.key('up', () => {
+    const cur = inputBox.getValue().trim();
+    if (cur && history.index === history.entries.length) {
+      currentInput = cur;
     }
+    inputBox.setValue(history.up());
+    screen.render();
+  });
 
-    if (key.full === 'down') {
-      const next = history.down();
-      process.nextTick(() => resetInput(PROMPT + (next || currentInput)));
-      if (history.index === history.entries.length) currentInput = '';
-      return;
-    }
+  inputBox.key('down', () => {
+    const next = history.down();
+    inputBox.setValue(next || currentInput);
+    if (history.index === history.entries.length) currentInput = '';
+    screen.render();
+  });
 
-    if (key.full === 'C-c' || key.full === 'C-d') {
-      screen.destroy();
-      onExit();
-      return;
-    }
+  inputBox.key(['C-c', 'C-d'], () => {
+    screen.destroy();
+    onExit();
   });
 
   screen.key(['pageup'], () => {
@@ -278,10 +266,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
   }
 
   // Initial render and focus
-  inputBox.setValue(PROMPT);
-  inputBox.focus();
-  inputBox.readInput(() => {});
   screen.render();
+  activateInput();
 
   // Clean up on destroy
   screen.on('destroy', () => {
