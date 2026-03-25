@@ -390,6 +390,12 @@ luaCtx.setGameSpeedAccessors(() => gameSpeed, (v) => { gameSpeed = v; });
 
 net.onGameSpeed((speed) => { gameSpeed = speed; });
 
+net.onLatencies((data) => {
+  for (const { id, rtt } of data) {
+    leaderboard.updateLatency(id, rtt);
+  }
+});
+
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
 luaCtx.setOnShipUpdate((updates) => {
   for (const u of updates) leaderboard.updateColor(u.id, u.color);

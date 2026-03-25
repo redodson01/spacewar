@@ -19,6 +19,11 @@ export function createLeaderboard() {
     if (entry) entry.name = name;
   }
 
+  function updateLatency(id, rtt) {
+    const entry = entries.get(id);
+    if (entry) entry.rtt = rtt;
+  }
+
   function clear() {
     entries.clear();
   }
@@ -72,12 +77,13 @@ export function createLeaderboard() {
       ctx.textAlign = 'right';
       ctx.fillText(scoreStr, col2, y);
       ctx.textAlign = 'left';
-      ctx.fillText(`  ${entry.name}`, col2, y);
+      const latencyStr = entry.rtt != null ? `  ${entry.rtt}ms` : '';
+      ctx.fillText(`  ${entry.name}${latencyStr}`, col2, y);
       y += 18;
     }
 
     ctx.shadowBlur = 0;
   }
 
-  return { addPlayer, removePlayer, updateColor, updateName, clear, recordKill, recordCollision, setScores, getScores, draw };
+  return { addPlayer, removePlayer, updateColor, updateName, updateLatency, clear, recordKill, recordCollision, setScores, getScores, draw };
 }

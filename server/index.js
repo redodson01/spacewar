@@ -93,6 +93,7 @@ function broadcastScores() {
 // --- Server state ---
 const serverProjectiles = [];
 let serverGameSpeed = 1.0;
+const playerLatencies = new Map(); // id -> rtt in ms
 
 const serverLua = createServerLua(ships, serverProjectiles, {
   onStateWrite(id, prop, value) {
@@ -306,6 +307,15 @@ wss.on('connection', (ws, req) => {
 
   console.log(`[join] ${name} (player ${id + 1})`);
 
+  // Latency measurement — ping every 2 seconds
+  let pendingPingTime = null;
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === 1) {
+      pendingPingTime = Date.now();
+      ws.send(JSON.stringify({ type: 'ping', t: pendingPingTime }));
+    }
+  }, 2000);
+
   // Send welcome
   const existingPlayers = [...players.values()].filter(p => p.id !== id);
   ws.send(JSON.stringify({
@@ -330,6 +340,17 @@ wss.on('connection', (ws, req) => {
 
     try {
       const msg = JSON.parse(str);
+
+      // Latency measurement
+      if (msg.type === 'pong') {
+        if (pendingPingTime) {
+          const rtt = Date.now() - pendingPingTime;
+          pendingPingTime = null;
+          playerLatencies.set(id, rtt);
+          broadcastAll({ type: 'latencies', data: [...playerLatencies.entries()].map(([pid, rtt]) => ({ id: pid, rtt })) });
+        }
+        return; // don't relay pong
+      }
 
       // Handle Lua execution from client editor/REPL
       if (msg.type === 'luaExec') {
@@ -451,6 +472,8 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
+    clearInterval(pingInterval);
+    playerLatencies.delete(id);
     const playerInfo = players.get(ws);
     players.delete(ws);
     scores.delete(id);

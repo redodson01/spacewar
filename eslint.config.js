@@ -59,6 +59,7 @@ export default [
         console: 'readonly',
         URL: 'readonly',
         setInterval: 'readonly',
+        clearInterval: 'readonly',
         Date: 'readonly',
       },
     },
