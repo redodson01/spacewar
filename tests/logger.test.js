@@ -3,7 +3,7 @@ import { createLogger, formatLine } from '../server/logger.js';
 
 describe('formatLine', () => {
   it('formats join events', () => {
-    expect(formatLine('join', { name: 'Alice', id: 0 })).toBe('[join] Alice (player 1)');
+    expect(formatLine('join', { name: 'Alice', id: 0 })).toBe('[join] Alice (Player 1)');
   });
 
   it('formats leave events', () => {
@@ -44,7 +44,7 @@ describe('createLogger', () => {
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const logger = createLogger();
     logger.log('join', { name: 'Test', id: 0 });
-    expect(spy).toHaveBeenCalledWith('[join] Test (player 1)');
+    expect(spy).toHaveBeenCalledWith('[join] Test (Player 1)');
     spy.mockRestore();
   });
 

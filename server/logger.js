@@ -4,14 +4,14 @@
 export function createLogger(sink = null) {
   function log(event, data = {}) {
     const line = formatLine(event, data);
-    if (!line) return;
+    if (line == null) return;
     if (sink) sink.log(event, line);
     else console.log(line);
   }
 
   function error(event, data = {}) {
     const line = formatLine(event, data);
-    if (!line) return;
+    if (line == null) return;
     if (sink) sink.error(event, line);
     else console.error(line);
   }
@@ -21,7 +21,7 @@ export function createLogger(sink = null) {
 
 export function formatLine(event, data) {
   switch (event) {
-    case 'join':      return `[join] ${data.name} (player ${data.id + 1})`;
+    case 'join':      return `[join] ${data.name} (Player ${data.id + 1})`;
     case 'leave':     return `[leave] ${data.name}`;
     case 'kill':      return `[kill] ${data.killer} killed ${data.victim}`;
     case 'collision':  return `[collision] ${data.name} destroyed`;

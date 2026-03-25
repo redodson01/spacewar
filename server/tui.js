@@ -83,11 +83,27 @@ export function createTUI({ getGameState, onInput, onExit }) {
   const BORDER = 14;  // base1
   const ACCENT = 'cyan';
 
-  // Log panel (left)
+  // Server info (top, persistent)
+  const infoBox = blessed.box({
+    parent: screen,
+    label: ` {${ACCENT}-fg}Server{/${ACCENT}-fg} `,
+    tags: true,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: 'shrink',
+    padding: { left: 1, right: 1 },
+    border: { type: 'line' },
+    style: {
+      border: { fg: BORDER },
+    },
+  });
+
+  // Log panel (left, below info)
   const logBox = blessed.log({
     parent: screen,
     label: ' Log ',
-    top: 0,
+    top: 4,
     left: 0,
     width: '75%',
     bottom: 3,
@@ -107,7 +123,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
   const playerBox = blessed.box({
     parent: screen,
     label: ' Players ',
-    top: 0,
+    top: 4,
     right: 0,
     width: '25%+1',
     height: '60%',
@@ -135,8 +151,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     tags: true,
   });
 
-  // Input line (bottom)
-  const inputBox = blessed.textbox({
+  // Input line (bottom) — use textarea for proper cursor/arrow key support
+  const inputBox = blessed.textarea({
     parent: screen,
     bottom: 0,
     left: 0,
@@ -149,6 +165,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
     label: ` {${ACCENT}-fg}Lua{/${ACCENT}-fg} `,
     tags: true,
     inputOnFocus: true,
+    // Prevent multi-line: enter submits instead of inserting newline
   });
 
   // --- Input handling ---
@@ -163,8 +180,10 @@ export function createTUI({ getGameState, onInput, onExit }) {
     inputBox.readInput(() => {});
   }
 
-  inputBox.on('submit', (value) => {
-    const line = (value || '').replace(/^> /, '').trim();
+  // Handle enter key for submission (textarea doesn't emit 'submit')
+  inputBox.key('enter', () => {
+    const value = inputBox.getValue();
+    const line = (value || '').replace(/^> /, '').replace(/\n/g, '').trim();
     if (line) {
       history.add(line);
       onInput(line);
@@ -173,14 +192,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
     activateInput();
   });
 
-  inputBox.on('cancel', () => {
+  inputBox.key('escape', () => {
     screen.render();
     activateInput();
   });
 
   inputBox.key('up', () => {
-    if (inputBox.value !== PROMPT && history.index === history.entries.length) {
-      currentInput = inputBox.value.replace(/^> /, '');
+    if (inputBox.getValue() !== PROMPT && history.index === history.entries.length) {
+      currentInput = inputBox.getValue().replace(/^> /, '').replace(/\n/g, '');
     }
     const prev = history.up();
     inputBox.setValue(PROMPT + prev);
@@ -262,5 +281,15 @@ export function createTUI({ getGameState, onInput, onExit }) {
     clearInterval(refreshTimer);
   });
 
-  return { log, error, updateStatus };
+  function setInfo(lines) {
+    infoBox.setContent(lines.join('\n'));
+    // Resize info box to fit content (borders + lines)
+    infoBox.height = lines.length + 2;
+    // Push log and player/stats panels below
+    logBox.top = infoBox.height;
+    playerBox.top = infoBox.height;
+    screen.render();
+  }
+
+  return { log, error, updateStatus, setInfo };
 }

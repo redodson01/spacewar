@@ -570,8 +570,9 @@ function setupReadlineREPL() {
 // --- Startup ---
 httpServer.listen(PORT, () => {
   // Set up TUI or fallback to readline
+  let tui = null;
   if (process.stdout.isTTY) {
-    const tui = createTUI({
+    tui = createTUI({
       getGameState: () => ({
         players: [
           ...[...players.values()].map(p => ({ id: p.id, name: p.name })),
@@ -598,26 +599,30 @@ httpServer.listen(PORT, () => {
     setupReadlineREPL();
   }
 
-  logger.log('info', { text: 'Spacewar server listening on:' });
-  logger.log('info', { text: `  Local:  http://localhost:${PORT}` });
+  // Gather server info
+  const infoLines = [`Local:  http://localhost:${PORT}`];
   if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
-    logger.log('info', { text: `  World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}` });
+    infoLines.push(`World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}`);
   }
-
   const nets = networkInterfaces();
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        logger.log('info', { text: `  LAN:    http://${net.address}:${PORT}` });
+        infoLines.push(`LAN:    http://${net.address}:${PORT}`);
       }
     }
+  }
+
+  if (process.stdout.isTTY && tui) {
+    tui.setInfo(infoLines);
+  } else {
+    logger.log('info', { text: 'Spacewar server listening on:' });
+    for (const line of infoLines) logger.log('info', { text: `  ${line}` });
   }
 
   if (process.argv.includes('--tunnel')) {
     startTunnel();
   }
-
-  logger.log('info', { text: '' });
 });
 
 async function startTunnel() {
