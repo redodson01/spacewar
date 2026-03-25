@@ -7,26 +7,7 @@
 
 import { fireProjectile } from './projectiles.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
-import { CONFIG_DEFAULTS, STATE_DEFAULTS } from './ship.js';
-
-const CONFIG_KEYS = new Set(Object.keys(CONFIG_DEFAULTS));
-const STATE_KEYS = new Set(Object.keys(STATE_DEFAULTS));
-
-function createShipProxy(ship) {
-  return new Proxy(ship, {
-    get(target, prop) {
-      if (CONFIG_KEYS.has(prop)) return target.config[prop];
-      if (STATE_KEYS.has(prop)) return target.state[prop];
-      return target[prop];
-    },
-    set(target, prop, value) {
-      if (CONFIG_KEYS.has(prop)) { target.config[prop] = value; return true; }
-      if (STATE_KEYS.has(prop)) { target.state[prop] = value; return true; }
-      target[prop] = value;
-      return true;
-    },
-  });
-}
+import { createShipProxy } from './ship-proxy.js';
 
 // --- Network mode: thin relay ---
 

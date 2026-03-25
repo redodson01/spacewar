@@ -32,8 +32,6 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
 };
 
-const COLORS = PLAYER_COLORS;
-
 // Player management
 const players = new Map(); // ws -> { id, color, name }
 const aiIds = new Map(); // aiId -> ownerWs ('server' for server-spawned AI)
@@ -54,7 +52,7 @@ function findOrCreateShip(id) {
   let ship = ships.find(s => s.id === id);
   if (!ship) {
     const spawn = SPAWN_POSITIONS[id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
-    ship = createLuaShip(id, spawn.x, spawn.y, COLORS[id]);
+    ship = createLuaShip(id, spawn.x, spawn.y, PLAYER_COLORS[id]);
     ship.state.angle = spawn.angle;
     ships.push(ship);
   }
@@ -103,7 +101,7 @@ const serverLua = createServerLua(ships, serverProjectiles, {
     const id = nextId();
     if (id < 0) return -1;
     const spawn = SPAWN_POSITIONS[id] || { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2, angle: 0 };
-    const ship = createLuaShip(id, spawn.x, spawn.y, COLORS[id]);
+    const ship = createLuaShip(id, spawn.x, spawn.y, PLAYER_COLORS[id]);
     ship.state.angle = spawn.angle;
     ship.spawnAngle = spawn.angle;
     ship.name = `Bot ${id + 1}`;
@@ -294,7 +292,7 @@ wss.on('connection', (ws, req) => {
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   const name = url.searchParams.get('name') || `Player ${id + 1}`;
-  const color = COLORS[id];
+  const color = PLAYER_COLORS[id];
   players.set(ws, { id, color, name });
   scores.set(id, 0);
 

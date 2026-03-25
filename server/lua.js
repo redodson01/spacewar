@@ -5,6 +5,7 @@
 import * as fengariLib from 'fengari';
 import * as interop from 'fengari-interop';
 import { CONFIG_DEFAULTS, STATE_DEFAULTS } from '../src/ship.js';
+import { createShipProxy } from '../src/ship-proxy.js';
 
 const fengari = {
   lua: fengariLib.lua,
@@ -14,33 +15,6 @@ const fengari = {
   to_luastring: fengariLib.to_luastring,
   to_jsstring: fengariLib.to_jsstring,
 };
-
-const CONFIG_KEYS = new Set(Object.keys(CONFIG_DEFAULTS));
-const STATE_KEYS = new Set(Object.keys(STATE_DEFAULTS));
-
-function createShipProxy(ship, onConfigChange, onStateChange) {
-  return new Proxy(ship, {
-    get(target, prop) {
-      if (CONFIG_KEYS.has(prop)) return target.config[prop];
-      if (STATE_KEYS.has(prop)) return target.state[prop];
-      return target[prop];
-    },
-    set(target, prop, value) {
-      if (CONFIG_KEYS.has(prop)) {
-        target.config[prop] = value;
-        if (onConfigChange) onConfigChange();
-        return true;
-      }
-      if (STATE_KEYS.has(prop)) {
-        target.state[prop] = value;
-        if (onStateChange) onStateChange(target.id, prop, value);
-        return true;
-      }
-      target[prop] = value;
-      return true;
-    },
-  });
-}
 
 export function createServerLua(ships, projectiles, callbacks) {
   const { lua, lauxlib, lualib, toLua, toJS } = {
@@ -69,7 +43,7 @@ export function createServerLua(ships, projectiles, callbacks) {
 
   function exposeShips() {
     if (ships.length > 0) {
-      fengari.interop.push(L, createShipProxy(ships[0], onConfigChange, callbacks.onStateWrite));
+      fengari.interop.push(L, createShipProxy(ships[0], { onConfigChange, onStateChange: callbacks.onStateWrite }));
       lua.lua_setglobal(L, LUA_SHIP);
     }
     for (const g of LUA_SHIP_GLOBALS) {
@@ -78,7 +52,7 @@ export function createServerLua(ships, projectiles, callbacks) {
     }
     for (const s of ships) {
       if (s.id >= 0 && s.id < 8) {
-        fengari.interop.push(L, createShipProxy(s, onConfigChange, callbacks.onStateWrite));
+        fengari.interop.push(L, createShipProxy(s, { onConfigChange, onStateChange: callbacks.onStateWrite }));
         lua.lua_setglobal(L, LUA_SHIP_GLOBALS[s.id]);
       }
     }

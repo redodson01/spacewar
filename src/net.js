@@ -1,3 +1,5 @@
+import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
+
 export function createNetClient() {
   let ws = null;
   let localId = null;
@@ -213,8 +215,6 @@ export function createNetClient() {
 }
 
 // Interpolation helper for remote ships
-import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
-
 export function createInterpolator() {
   const states = new Map(); // id -> { prev, next, t }
   function onState(id, snapshot) {
