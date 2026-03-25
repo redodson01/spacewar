@@ -41,6 +41,7 @@ export default [
         document: 'readonly',
         KeyboardEvent: 'readonly',
         Event: 'readonly',
+        console: 'readonly',
       },
     },
     rules: {
