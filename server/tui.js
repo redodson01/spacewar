@@ -75,6 +75,9 @@ export function createTUI({ getGameState, onInput, onExit }) {
   });
   process.stderr.write = origWrite;
 
+  // Use ANSI color names so the terminal's Solarized palette applies automatically.
+  // ANSI 0=base02, 1=red, 2=green, 3=yellow, 4=blue, 5=magenta, 6=cyan, 7=base2
+
   // Log panel (left)
   const logBox = blessed.log({
     parent: screen,
@@ -85,13 +88,13 @@ export function createTUI({ getGameState, onInput, onExit }) {
     bottom: 3,
     border: { type: 'line' },
     style: {
-      border: { fg: '#073642' },
-      label: { fg: '#2aa198' },
+      border: { fg: 'black' },
+      label: { fg: 'cyan' },
     },
     tags: true,
     scrollable: true,
     alwaysScroll: true,
-    scrollbar: { style: { bg: '#073642' } },
+    scrollbar: { style: { bg: 'black' } },
     mouse: true,
   });
 
@@ -105,9 +108,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     height: '60%',
     border: { type: 'line' },
     style: {
-      border: { fg: '#073642' },
-      label: { fg: '#2aa198' },
-      fg: '#839496',
+      border: { fg: 'black' },
+      label: { fg: 'cyan' },
     },
     tags: true,
   });
@@ -122,9 +124,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     bottom: 3,
     border: { type: 'line' },
     style: {
-      border: { fg: '#073642' },
-      label: { fg: '#2aa198' },
-      fg: '#839496',
+      border: { fg: 'black' },
+      label: { fg: 'cyan' },
     },
     tags: true,
   });
@@ -138,8 +139,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
     height: 3,
     border: { type: 'line' },
     style: {
-      border: { fg: '#073642' },
-      fg: '#93a1a1',
+      border: { fg: 'black' },
     },
     label: ' lua> ',
     inputOnFocus: true,
