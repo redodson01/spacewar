@@ -90,8 +90,12 @@ function broadcastScores() {
   broadcastAll({ type: 'scores', scores: [...scores.entries()].map(([id, score]) => ({ id, score })) });
 }
 
-// --- Server Lua context ---
-const serverLua = createServerLua(ships, {
+// --- Server state ---
+const serverProjectiles = [];
+let serverGameSpeed = 1.0;
+const playerLatencies = new Map(); // id -> rtt in ms
+
+const serverLua = createServerLua(ships, serverProjectiles, {
   onStateWrite(id, prop, value) {
     // Broadcast state override to all clients
     broadcastAll({ type: 'stateOverride', targetId: id, [prop]: value });
@@ -125,12 +129,27 @@ const serverLua = createServerLua(ships, {
   onNameChange(id, newName) {
     broadcastAll({ type: 'nameChange', playerId: id, newName });
   },
+  onGetSpeed() { return serverGameSpeed; },
+  onSetSpeed(speed) {
+    serverGameSpeed = speed;
+    broadcastAll({ type: 'gameSpeed', speed });
+  },
+  onShoot(ship) {
+    if (fireProjectile(serverProjectiles, ship)) {
+      const s = ship.state;
+      broadcastAll({ type: 'fire', id: ship.id, x: s.x, y: s.y, angle: s.angle, vx: s.vx, vy: s.vy });
+    }
+  },
+  onOutput(text, _isError) {
+    console.log(`[lua] ${text}`);
+  },
+  getWorldWidth() { return WORLD_WIDTH; },
+  getWorldHeight() { return WORLD_HEIGHT; },
 });
 
 serverLua.exposeScreen(WORLD_WIDTH, WORLD_HEIGHT);
 
 // --- Server-side AI game loop (uses same modules as client) ---
-const serverProjectiles = [];
 const SEND_INTERVAL = 50; // 20Hz
 const lastAISendTimes = new Map();
 
@@ -141,7 +160,7 @@ function isServerAI(ship) {
 let lastTickTime = Date.now();
 setInterval(() => {
   const now = Date.now();
-  const dt = (now - lastTickTime) / 1000;
+  const dt = Math.min((now - lastTickTime) / 1000, 0.05) * serverGameSpeed;
   lastTickTime = now;
 
   // Update server AI ships (same logic as client game loop)
@@ -154,7 +173,7 @@ setInterval(() => {
     }
 
     const actions = getAIActions(ship, ships, serverProjectiles, WORLD_WIDTH, WORLD_HEIGHT);
-    updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
+    updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT, dt);
     tickFireCooldown(ship, dt);
     tickInvulnerable(ship, dt);
 
@@ -171,7 +190,8 @@ setInterval(() => {
     // Send state at 20Hz
     const sendNow = Date.now();
     const lastTime = lastAISendTimes.get(ship.id) || 0;
-    if (sendNow - lastTime >= SEND_INTERVAL) {
+    const scaledInterval = SEND_INTERVAL / Math.max(0.25, serverGameSpeed);
+    if (sendNow - lastTime >= scaledInterval) {
       lastAISendTimes.set(ship.id, sendNow);
       const s = ship.state;
       broadcastAll({
@@ -181,6 +201,14 @@ setInterval(() => {
         thrusting: s.thrusting, destroyed: s.destroyed,
       });
     }
+  }
+
+  // Run Lua onUpdate callback
+  const luaResult = serverLua.callLuaUpdate(dt);
+  if (luaResult.configDirty) {
+    const updates = ships.map(s => ({ id: s.id, ...s.config }));
+    lastLuaUpdate = updates;
+    broadcastAll({ type: 'luaUpdate', updates });
   }
 
   // Update projectiles (same function as client)
@@ -279,6 +307,15 @@ wss.on('connection', (ws, req) => {
 
   console.log(`[join] ${name} (player ${id + 1})`);
 
+  // Latency measurement — ping every 2 seconds
+  let pendingPingTime = null;
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === 1) {
+      pendingPingTime = Date.now();
+      ws.send(JSON.stringify({ type: 'ping', t: pendingPingTime }));
+    }
+  }, 2000);
+
   // Send welcome
   const existingPlayers = [...players.values()].filter(p => p.id !== id);
   ws.send(JSON.stringify({
@@ -302,6 +339,46 @@ wss.on('connection', (ws, req) => {
 
     try {
       const msg = JSON.parse(str);
+
+      // Latency measurement
+      if (msg.type === 'pong') {
+        if (pendingPingTime) {
+          const rtt = Date.now() - pendingPingTime;
+          pendingPingTime = null;
+          playerLatencies.set(id, rtt);
+          broadcastAll({ type: 'latency', id, rtt });
+        }
+        return;
+      }
+
+      // Handle Lua execution from client editor/REPL
+      if (msg.type === 'luaExec') {
+        if (msg.mode === 'reset') {
+          serverLua.reset();
+          return;
+        }
+        let result;
+        if (msg.mode === 'run') {
+          result = serverLua.runLua(msg.code);
+        } else {
+          result = serverLua.runLuaREPL(msg.code);
+        }
+        // Send output back to the requesting client
+        for (const line of result.output) {
+          ws.send(JSON.stringify({ type: 'luaOutput', text: line, isError: line.startsWith('Error:') }));
+        }
+        // Broadcast config changes
+        if (result.configDirty) {
+          const updates = ships.map(s => ({ id: s.id, ...s.config }));
+          lastLuaUpdate = updates;
+          broadcastAll({ type: 'luaUpdate', updates });
+        }
+        // Log to server console
+        for (const line of result.output) {
+          if (!line.startsWith('> ')) console.log(`[lua] ${line}`);
+        }
+        return;
+      }
 
       // Relay game messages to other clients
       broadcast(ws, str);
@@ -402,6 +479,8 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
+    clearInterval(pingInterval);
+    playerLatencies.delete(id);
     const playerInfo = players.get(ws);
     players.delete(ws);
     scores.delete(id);
@@ -463,7 +542,7 @@ httpServer.listen(PORT, () => {
       return;
     }
 
-    const { output, configDirty } = serverLua.execute(code);
+    const { output, configDirty } = serverLua.runLuaREPL(code);
 
     for (const line of output) {
       console.log(line);

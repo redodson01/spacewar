@@ -34,6 +34,7 @@ const chat = createChat();
 const net = createNetClient();
 const interpolator = createInterpolator();
 let networkMode = false;
+let gameSpeed = 1.0;
 
 function makeShip(id) {
   const spawn = SPAWN_POSITIONS[id];
@@ -104,13 +105,29 @@ let appendOutput = (text, isError) => {
   else console.log(text);
 };
 
-let luaCtx;
+// Lua context — starts as local, swaps to network relay on connect
+let luaImpl;
 try {
-  luaCtx = createLuaContext(fengari, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaImpl = createLuaContext(fengari, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 } catch (e) {
   console.error('Lua init failed:', e);
-  luaCtx = createLuaContext(null, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
+  luaImpl = createLuaContext(null, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError));
 }
+// Wrapper so editor/chat can call methods that get redirected after network connect
+const luaCtx = {
+  get isReady() { return luaImpl.isReady; },
+  get hasOnUpdate() { return luaImpl.hasOnUpdate; },
+  runLua(code) { luaImpl.runLua(code); },
+  runLuaREPL(line) { luaImpl.runLuaREPL(line); },
+  callLuaUpdate(dt) { luaImpl.callLuaUpdate(dt); },
+  reset() { luaImpl.reset(); },
+  setOnShipUpdate(cb) { luaImpl.setOnShipUpdate(cb); },
+  setOnNameChange(cb) { luaImpl.setOnNameChange(cb); },
+  setOnAIAdd(cb) { luaImpl.setOnAIAdd(cb); },
+  setOnAIRemove(cb) { luaImpl.setOnAIRemove(cb); },
+  setGameSpeedAccessors(g, s) { luaImpl.setGameSpeedAccessors(g, s); },
+  broadcastShipUpdates() { luaImpl.broadcastShipUpdates(); },
+};
 
 const editorAPI = createEditor(elements, luaCtx, ships[0], () => {
   for (const ship of ships) {
@@ -370,6 +387,14 @@ luaCtx.setOnAIRemove((id) => {
   }
 });
 
+luaCtx.setGameSpeedAccessors(() => gameSpeed, (v) => { gameSpeed = v; });
+
+net.onGameSpeed((speed) => { gameSpeed = speed; });
+
+net.onLatency((id, rtt) => {
+  leaderboard.updateLatency(id, rtt);
+});
+
 // Broadcast Lua ship changes over network, and sync leaderboard colors locally
 luaCtx.setOnShipUpdate((updates) => {
   for (const u of updates) leaderboard.updateColor(u.id, u.color);
@@ -452,7 +477,9 @@ net.connect().then((welcome) => {
     }
   }
 
-  luaCtx.reset();
+  // Swap to network Lua relay — server is the authoritative Lua engine
+  luaImpl = createLuaContext(fengari, ships, projectiles, explosions, canvas, (text, isError) => appendOutput(text, isError), net);
+
   showHelpInChat();
   startGame();
 });
@@ -477,8 +504,9 @@ function drawWorldBorder() {
 let lastTime = 0;
 
 function gameLoop(time) {
-  const dt = lastTime ? (time - lastTime) / 1000 : 0;
+  const rawDt = lastTime ? Math.min((time - lastTime) / 1000, 0.05) : 0;
   lastTime = time;
+  const dt = rawDt * gameSpeed;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -502,14 +530,14 @@ function gameLoop(time) {
       const respawned = tickRespawn(ship, dt);
       if (networkMode && respawned) net.sendRespawn(ship);
 
-      updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT);
+      updateShip(ship, actions, WORLD_WIDTH, WORLD_HEIGHT, dt);
       tickFireCooldown(ship, dt);
       if (actions.fire && !ship.state.destroyed) {
         if (fireProjectile(projectiles, ship)) {
           if (networkMode) net.sendFire(ship);
         }
       }
-      if (networkMode) net.sendState(ship);
+      if (networkMode) net.sendState(ship, 50 / Math.max(0.25, gameSpeed));
     } else {
       interpolator.apply(ship, dt);
     }
@@ -557,7 +585,7 @@ function gameLoop(time) {
     }
   }
 
-  luaCtx.callLuaUpdate(dt);
+  if (!networkMode) luaCtx.callLuaUpdate(dt); // server handles onUpdate in network mode
   updateExplosions(explosions, dt);
   drawExplosions(ctx, explosions);
   drawProjectiles(ctx, projectiles);

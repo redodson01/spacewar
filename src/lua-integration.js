@@ -1,9 +1,14 @@
+// Lua integration — thin relay to server in network mode, local Fengari in local mode.
+//
+// In network mode: runLua/runLuaREPL send code to the server for execution.
+// Output comes back via luaOutput messages. onUpdate runs on the server at 60Hz.
+//
+// In local mode: runs a local Fengari VM (same as before) for offline single-player.
+
 import { fireProjectile } from './projectiles.js';
 import { WORLD_WIDTH, WORLD_HEIGHT } from './world.js';
 import { CONFIG_DEFAULTS, STATE_DEFAULTS } from './ship.js';
 
-// Create a flat proxy over a structured ship so Lua scripts can use
-// ship.color (maps to ship.config.color), ship.x (maps to ship.state.x), etc.
 const CONFIG_KEYS = new Set(Object.keys(CONFIG_DEFAULTS));
 const STATE_KEYS = new Set(Object.keys(STATE_DEFAULTS));
 
@@ -23,12 +28,33 @@ function createShipProxy(ship) {
   });
 }
 
-export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput) {
-  let onShipUpdate = null;
-  let onNameChange = null;
-  let onAIAdd = null;
-  let onAIRemove = null;
+// --- Network mode: thin relay ---
 
+function createNetworkLuaContext(net, appendOutput) {
+  // Wire up luaOutput from server
+  net.onLuaOutput((text, isError) => {
+    appendOutput(text, isError);
+  });
+
+  return {
+    isReady: true,
+    hasOnUpdate: false, // server tracks this
+    runLua(code) { net.sendLuaExec(code, 'run'); },
+    runLuaREPL(line) { net.sendLuaExec(line, 'repl'); },
+    callLuaUpdate(_dt) {}, // server handles onUpdate
+    reset() { net.sendLuaExec('__reset__', 'reset'); },
+    setOnShipUpdate() {},
+    setOnNameChange() {},
+    setOnAIAdd() {},
+    setOnAIRemove() {},
+    setGameSpeedAccessors() {},
+    broadcastShipUpdates() {},
+  };
+}
+
+// --- Local mode: full Fengari VM ---
+
+function createLocalLuaContext(fengari, ships, projectiles, explosions, appendOutput) {
   if (!fengari) {
     return {
       isReady: false,
@@ -37,10 +63,11 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       runLuaREPL(_line) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       callLuaUpdate(_dt) {},
       reset() {},
-      setOnShipUpdate(cb) { onShipUpdate = cb; },
-      setOnNameChange(cb) { onNameChange = cb; },
-      setOnAIAdd(cb) { onAIAdd = cb; },
-      setOnAIRemove(cb) { onAIRemove = cb; },
+      setOnShipUpdate() {},
+      setOnNameChange() {},
+      setOnAIAdd() {},
+      setOnAIRemove() {},
+      setGameSpeedAccessors() {},
       broadcastShipUpdates() {},
     };
   }
@@ -58,23 +85,26 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   const LUA_SHIP = toLua("ship");
   const LUA_SHIP_GLOBALS = [toLua("ship1"), toLua("ship2"), toLua("ship3"), toLua("ship4"), toLua("ship5"), toLua("ship6"), toLua("ship7"), toLua("ship8")];
   const LUA_PRINT = toLua("print");
-  const LUA_SHOOT = toLua("shoot");
   const LUA_PROJECTILES = toLua("projectiles");
 
   lauxlib.luaL_requiref(L, toLua("js"), interop.luaopen_js, 1);
   lua.lua_pop(L, 1);
 
+  let onShipUpdate = null;
+  let onNameChange = null;
+  let onAIAdd = null;
+  let onAIRemove = null;
+  let getGameSpeed = () => 1.0;
+  let setGameSpeed = () => {};
+
   function exposeShips() {
     if (ships.length === 0) return;
-    // ship = local player (always ships[0] in the array)
     interop.push(L, createShipProxy(ships[0]));
     lua.lua_setglobal(L, LUA_SHIP);
-    // Clear all numbered globals first
     for (const g of LUA_SHIP_GLOBALS) {
       lua.lua_pushnil(L);
       lua.lua_setglobal(L, g);
     }
-    // Set present ships by their ID
     for (const s of ships) {
       if (s.id >= 0 && s.id < 8) {
         interop.push(L, createShipProxy(s));
@@ -85,7 +115,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
 
   let lastConfigSnapshot = '';
   let lastBroadcastTime = 0;
-  const BROADCAST_INTERVAL = 50; // 20Hz
+  const BROADCAST_INTERVAL = 50;
 
   function broadcastShipUpdates(throttle = false) {
     if (!onShipUpdate) return;
@@ -109,13 +139,8 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       lua.lua_pushnil(L);
       lua.lua_setglobal(L, LUA_ON_UPDATE);
       ctx.hasOnUpdate = false;
-
-      lauxlib.luaL_dostring(L, toLua(
-        `screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`
-      ));
-
+      lauxlib.luaL_dostring(L, toLua(`screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`));
       exposeShips();
-
       const status = lauxlib.luaL_dostring(L, toLua(code));
       if (status !== lua.LUA_OK) {
         const err = toJS(lua.lua_tostring(L, -1));
@@ -123,20 +148,15 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         appendOutput('Error: ' + err, true);
         return;
       }
-
       lua.lua_getglobal(L, LUA_ON_UPDATE);
-      if (lua.lua_isfunction(L, -1)) {
-        ctx.hasOnUpdate = true;
-      }
+      if (lua.lua_isfunction(L, -1)) ctx.hasOnUpdate = true;
       lua.lua_pop(L, 1);
-
       appendOutput('Script executed.');
       broadcastShipUpdates();
     },
 
     runLuaREPL(line) {
       appendOutput('> ' + line);
-
       let status = lauxlib.luaL_loadstring(L, toLua('return ' + line));
       if (status !== lua.LUA_OK) {
         lua.lua_pop(L, 1);
@@ -148,7 +168,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         appendOutput('Error: ' + err, true);
         return;
       }
-
       const base = lua.lua_gettop(L) - 1;
       status = lua.lua_pcall(L, 0, lua.LUA_MULTRET, 0);
       if (status !== lua.LUA_OK) {
@@ -157,7 +176,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         appendOutput('Error: ' + err, true);
         return;
       }
-
       const nresults = lua.lua_gettop(L) - base;
       if (nresults > 0) {
         const parts = [];
@@ -173,7 +191,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         appendOutput(parts.join('\t'));
         lua.lua_settop(L, base);
       }
-
       lua.lua_getglobal(L, LUA_ON_UPDATE);
       ctx.hasOnUpdate = lua.lua_isfunction(L, -1);
       lua.lua_pop(L, 1);
@@ -182,7 +199,6 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
 
     callLuaUpdate(dt) {
       if (!ctx.hasOnUpdate) return;
-
       lua.lua_getglobal(L, LUA_ON_UPDATE);
       lua.lua_pushnumber(L, dt);
       const status = lua.lua_pcall(L, 1, 0, 0);
@@ -192,7 +208,7 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
         appendOutput('onUpdate error: ' + err, true);
         ctx.hasOnUpdate = false;
       }
-      broadcastShipUpdates(true); // throttled — only sends if config changed
+      broadcastShipUpdates(true);
     },
 
     reset() {
@@ -210,16 +226,15 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
     setOnNameChange(cb) { onNameChange = cb; },
     setOnAIAdd(cb) { onAIAdd = cb; },
     setOnAIRemove(cb) { onAIRemove = cb; },
+    setGameSpeedAccessors(getter, setter) { getGameSpeed = getter; setGameSpeed = setter; },
     broadcastShipUpdates,
   };
 
-  // Initial API exposure
+  // Initial exposure
   exposeShips();
+  lauxlib.luaL_dostring(L, toLua(`screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`));
 
-  lauxlib.luaL_dostring(L, toLua(
-    `screen = { width = ${WORLD_WIDTH}, height = ${WORLD_HEIGHT} }`
-  ));
-
+  // print
   lua.lua_pushcfunction(L, function (L) {
     const n = lua.lua_gettop(L);
     const parts = [];
@@ -236,18 +251,16 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
   interop.push(L, projectiles);
   lua.lua_setglobal(L, LUA_PROJECTILES);
 
+  // shoot
   lua.lua_pushcfunction(L, function () {
-    if (!ships[0].state.destroyed) fireProjectile(projectiles, ships[0]);
+    if (ships[0] && !ships[0].state.destroyed) fireProjectile(projectiles, ships[0]);
     return 0;
   });
-  lua.lua_setglobal(L, LUA_SHOOT);
+  lua.lua_setglobal(L, toLua("shoot"));
 
-  const LUA_SET_NAME = toLua("setName");
+  // setName
   lua.lua_pushcfunction(L, function (L) {
-    if (lua.lua_gettop(L) < 2) {
-      appendOutput('Usage: setName(shipNum, "name") — e.g. setName(1, "Alice")', true);
-      return 0;
-    }
+    if (lua.lua_gettop(L) < 2) { appendOutput('Usage: setName(shipNum, "name")', true); return 0; }
     const shipNum = lua.lua_tointeger(L, 1);
     const newName = toJS(lua.lua_tostring(L, 2));
     const ship = ships.find(s => s.id === shipNum - 1);
@@ -255,93 +268,92 @@ export function createLuaContext(fengari, ships, projectiles, explosions, canvas
       ship.name = newName;
       if (onNameChange) onNameChange(ship.id, newName);
       appendOutput(`Player ${shipNum} is now "${newName}".`);
-    } else {
-      appendOutput(`Player ${shipNum} not found.`, true);
-    }
+    } else { appendOutput(`Player ${shipNum} not found.`, true); }
     return 0;
   });
-  lua.lua_setglobal(L, LUA_SET_NAME);
+  lua.lua_setglobal(L, toLua("setName"));
 
-  const LUA_ADD_AI = toLua("addAI");
+  // addAI
   lua.lua_pushcfunction(L, function () {
     if (onAIAdd) {
       const id = onAIAdd();
-      if (id >= 0) {
-        exposeShips();
-        appendOutput(`Bot ${id + 1} added.`);
-        return 0;
-      } else {
-        appendOutput('No free slots.', true);
-      }
+      if (id >= 0) { exposeShips(); appendOutput(`Bot ${id + 1} added.`); }
+      else { appendOutput('No free slots.', true); }
     }
     return 0;
   });
-  lua.lua_setglobal(L, LUA_ADD_AI);
+  lua.lua_setglobal(L, toLua("addAI"));
 
-  const LUA_REMOVE_AI = toLua("removeAI");
+  // removeAI
   lua.lua_pushcfunction(L, function (L) {
     const shipNum = lua.lua_gettop(L) >= 1 ? lua.lua_tointeger(L, 1) : 0;
-    if (shipNum < 1 || shipNum > 8) {
-      appendOutput('Usage: removeAI(shipNum) — e.g. removeAI(3)', true);
-      return 0;
-    }
+    if (shipNum < 1 || shipNum > 8) { appendOutput('Usage: removeAI(shipNum)', true); return 0; }
     const ship = ships.find(s => s.id === shipNum - 1);
-    if (!ship || !ship.isAI) {
-      appendOutput(`Player ${shipNum} is not an AI.`, true);
-      return 0;
-    }
+    if (!ship || !ship.isAI) { appendOutput(`Player ${shipNum} is not an AI.`, true); return 0; }
     if (onAIRemove) onAIRemove(ship.id);
     exposeShips();
     appendOutput(`Bot ${shipNum} removed.`);
     return 0;
   });
-  lua.lua_setglobal(L, LUA_REMOVE_AI);
+  lua.lua_setglobal(L, toLua("removeAI"));
 
-  const LUA_HELP = toLua("help");
+  // speed
+  lua.lua_pushcfunction(L, function (L) {
+    if (lua.lua_gettop(L) >= 1) {
+      const speed = lua.lua_tonumber(L, 1);
+      setGameSpeed(speed);
+      appendOutput(`Game speed set to ${speed}x.`);
+    } else {
+      lua.lua_pushnumber(L, getGameSpeed());
+      return 1;
+    }
+    return 0;
+  });
+  lua.lua_setglobal(L, toLua("speed"));
+
+  // help
   lua.lua_pushcfunction(L, function () {
     appendOutput([
       '=== Spacewar Lua API ===',
       '',
       'GLOBALS',
-      '  ship / ship1      Player 1\'s ship (alias)',
-      '  ship2 - ship4     Other players\' ships (nil if absent)',
-      '  projectiles       Array of active projectiles',
-      '  screen.width      World width (1920)',
-      '  screen.height     World height (1080)',
+      '  ship / ship1-ship8     Ship objects',
+      '  projectiles            Active projectiles array',
+      '  screen.width/height    World dimensions',
       '',
       'SHIP CONFIG (persists across respawn)',
-      '  ship.color             CSS color string',
-      '  ship.radius            Ship size (default 20)',
-      '  ship.thrust            Acceleration per frame (default 0.15)',
-      '  ship.turnSpeed         Rotation per frame (default 0.05)',
-      '  ship.friction          Velocity decay 0-1 (default 0.995)',
-      '  ship.fireCooldown      Seconds between shots (default 0.25)',
-      '  ship.showName          Show name above ship (default false)',
-      '  ship.explosionParticles  Particle count (default 25)',
+      '  ship.color, ship.radius, ship.thrust, ship.turnSpeed,',
+      '  ship.friction, ship.fireCooldown, ship.showName,',
+      '  ship.explosionParticles',
       '',
       'SHIP STATE (resets on respawn)',
-      '  ship.x, ship.y         Position',
-      '  ship.angle              Facing angle in radians',
-      '  ship.vx, ship.vy       Velocity',
-      '  ship.destroyed          Whether ship is dead',
-      '  ship.respawnTimer       Seconds until respawn',
-      '  ship.invulnerableTimer  Seconds of invulnerability',
-      '  ship.thrusting          Whether thrust is active',
+      '  ship.x, ship.y, ship.angle, ship.vx, ship.vy,',
+      '  ship.destroyed, ship.thrusting',
       '',
       'FUNCTIONS',
-      '  shoot()           Fire a projectile from your ship',
-      '  addAI()           Add an AI opponent (returns ship number)',
-      '  removeAI(n)       Remove AI player n',
-      '  setName(n, name)  Rename player n — e.g. setName(1, "Alice")',
-      '  print(...)        Output to this console',
-      '  help()            Show this reference',
+      '  shoot()              Fire a projectile from your ship',
+      '  addAI()              Add an AI opponent',
+      '  removeAI(n)          Remove AI player n',
+      '  setName(n, name)     Rename player n',
+      '  speed() / speed(n)   Get/set game speed',
+      '  print(...)           Output to console',
+      '  help()               Show this reference',
       '',
       'CALLBACKS',
-      '  function onUpdate(dt)   Called every frame (dt in seconds)',
+      '  function onUpdate(dt)  Called every frame',
     ].join('\n'));
     return 0;
   });
-  lua.lua_setglobal(L, LUA_HELP);
+  lua.lua_setglobal(L, toLua("help"));
 
   return ctx;
+}
+
+// --- Factory: choose network or local based on connection ---
+
+export function createLuaContext(fengari, ships, projectiles, explosions, canvas, appendOutput, net = null) {
+  if (net && net.isConnected) {
+    return createNetworkLuaContext(net, appendOutput);
+  }
+  return createLocalLuaContext(fengari, ships, projectiles, explosions, appendOutput);
 }
