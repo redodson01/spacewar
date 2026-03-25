@@ -478,7 +478,11 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'chat') {
-        logger.log('chat', { name: msg.name, text: msg.text });
+        if (msg.kind === 'lua') {
+          logger.log('lua', { text: msg.text });
+        } else {
+          logger.log('chat', { name: msg.name, text: msg.text });
+        }
       }
     } catch (e) {
       if (e instanceof SyntaxError) return; // ignore malformed JSON
