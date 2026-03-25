@@ -11,6 +11,9 @@ import { updateShip, destroyShip, tickRespawn, tickInvulnerable } from '../src/s
 import { PROJECTILE_DEFAULTS, fireProjectile, updateProjectiles, tickFireCooldown } from '../src/projectiles.js';
 import { checkShipProjectileCollision, checkShipShipCollision } from '../src/collision.js';
 import { computeSpawnPositions, PLAYER_COLORS, MAX_PLAYERS } from '../src/world.js';
+import { createLogger } from './logger.js';
+
+const logger = createLogger();
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -133,7 +136,7 @@ const serverLua = createServerLua(ships, serverProjectiles, {
     }
   },
   onOutput(text, _isError) {
-    console.log(`[lua] ${text}`);
+    logger.log('lua', { text });
   },
   getWorldWidth() { return WORLD_WIDTH; },
   getWorldHeight() { return WORLD_HEIGHT; },
@@ -225,7 +228,7 @@ setInterval(() => {
         }
         broadcastScores();
         const killer = ships.find(s => s.id === killerId);
-        console.log(`[kill] ${killer?.name || 'Player ' + (killerId + 1)} killed ${ship.name || 'Bot'}`);
+        logger.log('kill', { killer: killer?.name || 'Player ' + (killerId + 1), victim: ship.name || 'Bot' });
       }
     }
   }
@@ -305,7 +308,7 @@ wss.on('connection', (ws, req) => {
   const ship = findOrCreateShip(id);
   ship.name = name;
 
-  console.log(`[join] ${name} (player ${id + 1})`);
+  logger.log('join', { name, id });
 
   // Latency measurement — ping every 2 seconds
   let pendingPingTime = null;
@@ -392,7 +395,7 @@ wss.on('connection', (ws, req) => {
         }
         // Log to server console
         for (const line of result.output) {
-          if (!line.startsWith('> ')) console.log(`[lua] ${line}`);
+          if (!line.startsWith('> ')) logger.log('lua', { text: line });
         }
         return;
       }
@@ -474,7 +477,7 @@ wss.on('connection', (ws, req) => {
         aiShip.name = msg.name;
         aiShip.isAI = true;
         broadcast(ws, { type: 'join', id: msg.aiId, name: msg.name });
-        console.log(`[ai] ${msg.name} added by ${players.get(ws)?.name}`);
+        logger.log('ai', { text: `${msg.name} added by ${players.get(ws)?.name}` });
       }
 
       if (msg.type === 'aiLeave') {
@@ -500,21 +503,24 @@ wss.on('connection', (ws, req) => {
           const killer = msg.killerId != null ? ships.find(s => s.id === msg.killerId) : null;
           if (victim) {
             if (killer) {
-              console.log(`[kill] ${killer.name || 'Player ' + (killer.id + 1)} killed ${victim.name || 'Player ' + (victim.id + 1)}`);
+              logger.log('kill', { killer: killer.name || 'Player ' + (killer.id + 1), victim: victim.name || 'Player ' + (victim.id + 1) });
             } else {
-              console.log(`[collision] ${victim.name || 'Player ' + (victim.id + 1)} destroyed`);
+              logger.log('collision', { name: victim.name || 'Player ' + (victim.id + 1) });
             }
           }
         }
       }
 
       if (msg.type === 'chat') {
-        const prefix = msg.name ? `${msg.name}: ` : '';
-        console.log(`[chat] ${prefix}${msg.text}`);
+        if (msg.kind === 'lua') {
+          logger.log('lua', { text: msg.text });
+        } else {
+          logger.log('chat', { name: msg.name, text: msg.text });
+        }
       }
     } catch (e) {
       if (e instanceof SyntaxError) return; // ignore malformed JSON
-      console.error('[ws] message handler error:', e);
+      logger.error('ws-error', { error: e });
     }
   });
 
@@ -526,7 +532,7 @@ wss.on('connection', (ws, req) => {
     scores.delete(id);
     removeShip(id);
     broadcast(null, { type: 'leave', id });
-    console.log(`[leave] ${playerInfo?.name || 'Player ' + (id + 1)}`);
+    logger.log('leave', { name: playerInfo?.name || 'Player ' + (id + 1) });
 
     // Clean up AI ships owned by this connection
     for (const [aiId, owner] of aiIds) {
@@ -546,17 +552,17 @@ wss.on('connection', (ws, req) => {
 
 // --- REPL ---
 httpServer.listen(PORT, () => {
-  console.log(`Spacewar server listening on:`);
-  console.log(`  Local:  http://localhost:${PORT}`);
+  logger.log('info', { text: 'Spacewar server listening on:' });
+  logger.log('info', { text: `  Local:  http://localhost:${PORT}` });
   if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
-    console.log(`  World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}`);
+    logger.log('info', { text: `  World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}` });
   }
 
   const nets = networkInterfaces();
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        console.log(`  LAN:    http://${net.address}:${PORT}`);
+        logger.log('info', { text: `  LAN:    http://${net.address}:${PORT}` });
       }
     }
   }
@@ -565,12 +571,14 @@ httpServer.listen(PORT, () => {
     startTunnel();
   }
 
-  console.log(`\nType Lua commands below. help() for reference.\n`);
+  logger.log('info', { text: '\nType Lua commands below. help() for reference.\n' });
 
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: '> ',
+    history: [],
+    historySize: 200,
   });
 
   rl.prompt();
@@ -585,7 +593,7 @@ httpServer.listen(PORT, () => {
     const { output, configDirty } = serverLua.runLuaREPL(code);
 
     for (const line of output) {
-      console.log(line);
+      logger.log('info', { text: line });
     }
 
     // Broadcast config changes to clients
@@ -608,9 +616,9 @@ async function startTunnel() {
     const { startTunnel: start } = await import('untun');
     const tunnel = await start({ port: PORT });
     const url = await tunnel.getURL();
-    console.log(`  Public: ${url}`);
+    logger.log('info', { text: `  Public: ${url}` });
   } catch (e) {
-    console.error('Failed to start tunnel:', e.message);
-    console.error('Install untun: npm install --save-dev untun');
+    logger.error('tunnel', { text: `Failed to start tunnel: ${e.message}` });
+    logger.error('tunnel', { text: 'Install untun: npm install --save-dev untun' });
   }
 }
