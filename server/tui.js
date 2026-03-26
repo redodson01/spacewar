@@ -328,7 +328,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
       case 'join':
         return `{green-fg}[join]{/green-fg} ${colorName(data.name)} (Player ${data.id + 1})`;
       case 'leave':
-        return `{yellow-fg}[leave]{/yellow-fg} ${colorName(data.name)}`;
+        return `{yellow-fg}[leave]{/yellow-fg} ${data.color ? colorWithHex(data.name, data.color) : colorName(data.name)}`;
       case 'kill':
         return `{red-fg}[kill]{/red-fg} ${colorName(data.killer)} killed ${colorName(data.victim)}`;
       case 'collision':

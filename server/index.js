@@ -505,7 +505,7 @@ wss.on('connection', (ws, req) => {
     scores.delete(id);
     removeShip(id);
     broadcast(null, { type: 'leave', id });
-    logger.log('leave', { name: playerInfo?.name || 'Player ' + (id + 1) });
+    logger.log('leave', { name: playerInfo?.name || 'Player ' + (id + 1), color: playerInfo?.color });
 
     // Clean up AI ships owned by this connection
     for (const [aiId, owner] of aiIds) {
