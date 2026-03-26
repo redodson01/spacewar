@@ -78,10 +78,18 @@ export function createTUI({ getGameState, onInput, onExit }) {
   process.stderr.write = origWrite;
 
   // Use ANSI color numbers for Solarized compatibility.
-  // Solarized maps: 0=base02, 6=cyan, 10=base01, 14=base1
-  // base1 (ANSI 14) is a medium gray visible on both light and dark backgrounds.
-  const BORDER = 14;  // base1
+  const BORDER = 14;  // base1 — medium gray, works on light and dark
   const ACCENT = 'cyan';
+  const PAD = { left: 1 };
+
+  // Layout constants (all in terminal rows/cols)
+  const INFO_H = 4;    // border + 2 content lines + border
+  const INPUT_H = 3;   // border + 1 input line + border
+  const STATS_H = 5;   // border + 3 content lines + border
+  const RIGHT_W = 30;  // fixed column width for right panels
+
+  // Row layout:  info(4) | log/players/stats(fill) | input(3)
+  // Col layout:  log(fill) gap(1) right-panels(RIGHT_W)
 
   // Server info (top, persistent)
   const infoBox = blessed.box({
@@ -91,27 +99,23 @@ export function createTUI({ getGameState, onInput, onExit }) {
     top: 0,
     left: 0,
     width: '100%',
-    height: 'shrink',
-    padding: { left: 1, right: 1 },
+    height: INFO_H,
+    padding: PAD,
     border: { type: 'line' },
-    style: {
-      border: { fg: BORDER },
-    },
+    style: { border: { fg: BORDER } },
   });
 
-  // Log panel (left, below info)
+  // Log panel (left)
   const logBox = blessed.log({
     parent: screen,
     label: ' Log ',
-    top: 4,
+    top: INFO_H,
     left: 0,
-    width: '75%-1',
-    bottom: 3,
+    right: RIGHT_W + 1, // 1 col gap before right panels
+    bottom: INPUT_H,
+    padding: PAD,
     border: { type: 'line' },
-    style: {
-      border: { fg: BORDER },
-      label: { fg: ACCENT },
-    },
+    style: { border: { fg: BORDER }, label: { fg: ACCENT } },
     tags: true,
     scrollable: true,
     alwaysScroll: true,
@@ -119,49 +123,43 @@ export function createTUI({ getGameState, onInput, onExit }) {
     mouse: true,
   });
 
-  // Player list (right-top — 1 col gap from log)
+  // Player list (right-top — fills above stats)
   const playerBox = blessed.box({
     parent: screen,
     label: ' Players ',
-    top: 4,
+    top: INFO_H,
     right: 0,
-    width: '25%',
-    height: '50%-2',
+    width: RIGHT_W,
+    bottom: INPUT_H + STATS_H,
+    padding: PAD,
     border: { type: 'line' },
-    style: {
-      border: { fg: BORDER },
-      label: { fg: ACCENT },
-    },
+    style: { border: { fg: BORDER }, label: { fg: ACCENT } },
     tags: true,
   });
 
-  // Stats panel (right-bottom — 1 row gap from players)
+  // Stats panel (right-bottom — fixed height)
   const statsBox = blessed.box({
     parent: screen,
     label: ' Stats ',
     right: 0,
-    width: '25%',
-    top: '50%+3',
-    bottom: 3,
+    width: RIGHT_W,
+    height: STATS_H,
+    bottom: INPUT_H,
+    padding: PAD,
     border: { type: 'line' },
-    style: {
-      border: { fg: BORDER },
-      label: { fg: ACCENT },
-    },
+    style: { border: { fg: BORDER }, label: { fg: ACCENT } },
     tags: true,
   });
 
-  // Input line (bottom) — textbox for single-line input with submit/cancel events.
+  // Input line (bottom)
   const inputBox = blessed.textbox({
     parent: screen,
     bottom: 0,
     left: 0,
     width: '100%',
-    height: 3,
+    height: INPUT_H,
     border: { type: 'line' },
-    style: {
-      border: { fg: BORDER },
-    },
+    style: { border: { fg: BORDER } },
     label: ` {${ACCENT}-fg}Lua{/${ACCENT}-fg} `,
     tags: true,
     inputOnFocus: true,
@@ -276,11 +274,10 @@ export function createTUI({ getGameState, onInput, onExit }) {
 
   function setInfo(lines) {
     infoBox.setContent(lines.join('\n'));
-    // Resize info box to fit content (borders + lines)
-    infoBox.height = lines.length + 2;
-    // Push log and player/stats panels below
-    logBox.top = infoBox.height;
-    playerBox.top = infoBox.height;
+    const h = lines.length + 2; // borders + content
+    infoBox.height = h;
+    logBox.top = h;
+    playerBox.top = h;
     screen.render();
   }
 
