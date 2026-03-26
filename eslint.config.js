@@ -41,6 +41,7 @@ export default [
         document: 'readonly',
         KeyboardEvent: 'readonly',
         Event: 'readonly',
+        console: 'readonly',
       },
     },
     rules: {
@@ -60,6 +61,8 @@ export default [
         URL: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
         Date: 'readonly',
       },
     },

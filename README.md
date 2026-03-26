@@ -128,6 +128,7 @@ server/
   index.js             Multiplayer WebSocket server with Lua REPL
   lua.js               Server-side Fengari Lua context
   logger.js            Structured event logger
+  tui.js               Terminal dashboard UI (neo-blessed)
 tests/
   ship.test.js             Ship physics unit tests
   projectiles.test.js      Projectile system unit tests
@@ -145,11 +146,13 @@ tests/
   storage.test.js          Storage persistence unit tests
   editor.test.js           Editor storage integration tests
   commands.test.js         Command registry unit tests
+  logger.test.js           Logger formatting and sink tests
+  tui.test.js              TUI colorize and input history tests
 ```
 
 ### Server Console
 
-`npm run serve` includes a Lua REPL in the terminal. Type Lua commands to set up scenarios, spawn AI, modify ships, and monitor the game. Type `help()` for the full API. Game events (joins, kills, chat) are logged to stdout.
+`npm run serve` launches a TUI dashboard with a colored event log, player list, game stats, and a Lua REPL input. Type Lua commands to set up scenarios, spawn AI, modify ships, and monitor the game. Type `help()` for the full API. When stdout is not a TTY (e.g., piped to a file), the server falls back to a plain console logger with a readline REPL.
 
 ### Scripts
 
