@@ -99,14 +99,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
     },
   });
 
-  // Log panel (left, below info — 1 row gap from info box)
+  // Log panel (left, below info)
   const logBox = blessed.log({
     parent: screen,
     label: ' Log ',
-    top: 5,
+    top: 4,
     left: 0,
     width: '75%-1',
-    bottom: 4,
+    bottom: 3,
     border: { type: 'line' },
     style: {
       border: { fg: BORDER },
@@ -123,10 +123,10 @@ export function createTUI({ getGameState, onInput, onExit }) {
   const playerBox = blessed.box({
     parent: screen,
     label: ' Players ',
-    top: 5,
+    top: 4,
     right: 0,
     width: '25%',
-    height: '50%-3',
+    height: '50%-2',
     border: { type: 'line' },
     style: {
       border: { fg: BORDER },
@@ -142,7 +142,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
     right: 0,
     width: '25%',
     top: '50%+3',
-    bottom: 4,
+    bottom: 3,
     border: { type: 'line' },
     style: {
       border: { fg: BORDER },
@@ -278,9 +278,9 @@ export function createTUI({ getGameState, onInput, onExit }) {
     infoBox.setContent(lines.join('\n'));
     // Resize info box to fit content (borders + lines)
     infoBox.height = lines.length + 2;
-    // Push log and player/stats panels below (with 1 row gap)
-    logBox.top = infoBox.height + 1;
-    playerBox.top = infoBox.height + 1;
+    // Push log and player/stats panels below
+    logBox.top = infoBox.height;
+    playerBox.top = infoBox.height;
     screen.render();
   }
 
