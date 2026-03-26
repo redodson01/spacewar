@@ -14,7 +14,6 @@ const EVENT_COLORS = {
   collision: 'red',
   chat:      11,       // base00 — muted but readable on light and dark
   lua:       'cyan',
-  ai:        'magenta',
   'ws-error':'red',
   tunnel:    'blue',
   info:      null,     // use terminal default
@@ -295,13 +294,6 @@ export function createTUI({ getGameState, onInput, onExit }) {
         return `{red-fg}[collision]{/red-fg} ${colorName(data.name)} destroyed`;
       case 'lua':
         return `{cyan-fg}[lua]{/cyan-fg} ${escaped.replace(/^\[lua\] /, '')}`;
-      case 'ai':
-        if (data.botName) {
-          const parts = [`{magenta-fg}[ai]{/magenta-fg} ${colorName(data.botName)} ${data.action}`];
-          if (data.byName) parts.push(`by ${colorName(data.byName)}`);
-          return parts.join(' ');
-        }
-        return colorize(event, formattedLine);
       case 'chat':
         if (data.name) {
           const color = EVENT_COLORS[event];

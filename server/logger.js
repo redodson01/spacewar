@@ -27,7 +27,6 @@ export function formatLine(event, data) {
     case 'collision':  return `[collision] ${data.name} destroyed`;
     case 'chat':      return `[chat] ${data.name ? data.name + ': ' : ''}${data.text}`;
     case 'lua':       return `[lua] ${data.text}`;
-    case 'ai':        return data.text || `[ai] ${data.botName} ${data.action}${data.byName ? ' by ' + data.byName : ''}`;
     case 'ws-error':  return `[ws] message handler error: ${data.error?.stack || data.error}`;
     case 'tunnel':    return `[tunnel] ${data.text}`;
     case 'info':      return data.text;
