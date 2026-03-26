@@ -623,16 +623,21 @@ httpServer.listen(PORT, () => {
   }
 
   if (process.argv.includes('--tunnel')) {
-    startTunnel();
+    startTunnel(tui, infoLines);
   }
 });
 
-async function startTunnel() {
+async function startTunnel(tui, infoLines) {
   try {
     const { startTunnel: start } = await import('untun');
     const tunnel = await start({ port: PORT });
     const url = await tunnel.getURL();
-    logger.log('info', { text: `  Public: ${url}` });
+    if (tui) {
+      infoLines.push(`Public: ${url}`);
+      tui.setInfo(infoLines);
+    } else {
+      logger.log('info', { text: `  Public: ${url}` });
+    }
   } catch (e) {
     logger.error('tunnel', { text: `Failed to start tunnel: ${e.message}` });
     logger.error('tunnel', { text: 'Install untun: npm install --save-dev untun' });
