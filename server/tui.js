@@ -303,7 +303,11 @@ export function createTUI({ getGameState, onInput, onExit }) {
       case 'chat':
         if (data.name) {
           const color = EVENT_COLORS[event];
-          return `{${color}-fg}[chat]{/${color}-fg} ${colorName(data.name)}: ${escaped.replace(/^\[chat\] .*?: /, '')}`;
+          const state = getGameState();
+          const player = state.players.find(p => p.name === data.name);
+          const nameWithColon = colorWithHex(data.name + ':', player?.color);
+          const chatText = escaped.replace(/^\[chat\] .*?: /, '');
+          return `{${color}-fg}[chat]{/${color}-fg} ${nameWithColon} ${chatText}`;
         }
         return colorize(event, formattedLine);
       default:
