@@ -2,6 +2,9 @@
 // Uses neo-blessed for terminal widget management.
 
 import blessed from 'neo-blessed';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 
 // --- Color mapping for log events ---
 
@@ -31,11 +34,32 @@ export function colorize(event, text) {
 
 // --- Input history for REPL ---
 
+const HISTORY_DIR = join(homedir(), '.config', 'spacewar');
+const HISTORY_FILE = join(HISTORY_DIR, 'server_history');
+
 export class InputHistory {
-  constructor(maxSize = 200) {
+  constructor(maxSize = 200, filePath = HISTORY_FILE) {
     this.entries = [];
     this.index = 0;
     this.maxSize = maxSize;
+    this.filePath = filePath;
+    if (filePath) this._load();
+  }
+
+  _load() {
+    try {
+      const data = readFileSync(this.filePath, 'utf8');
+      this.entries = data.split('\n').filter(Boolean).slice(-this.maxSize);
+      this.index = this.entries.length;
+    } catch { /* no history file yet */ }
+  }
+
+  _save() {
+    if (!this.filePath) return;
+    try {
+      mkdirSync(HISTORY_DIR, { recursive: true });
+      writeFileSync(this.filePath, this.entries.join('\n') + '\n');
+    } catch { /* ignore write errors */ }
   }
 
   add(line) {
@@ -44,6 +68,7 @@ export class InputHistory {
       if (this.entries.length > this.maxSize) {
         this.entries.splice(0, this.entries.length - this.maxSize);
       }
+      this._save();
     }
     this.index = this.entries.length;
   }
@@ -119,8 +144,11 @@ export function createTUI({ getGameState, onInput, onExit }) {
     scrollable: true,
     alwaysScroll: true,
     scrollbar: { style: { bg: BORDER } },
-    mouse: true,
   });
+
+  // Override default mouse wheel scroll (half-height is too jumpy)
+  logBox.on('wheeldown', () => { logBox.scroll(3); screen.render(); });
+  logBox.on('wheelup', () => { logBox.scroll(-3); screen.render(); });
 
   // Stats panel (right-top — fixed height)
   const statsBox = blessed.box({

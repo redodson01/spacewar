@@ -37,12 +37,12 @@ describe('colorize', () => {
 
 describe('InputHistory', () => {
   it('starts empty', () => {
-    const h = new InputHistory();
+    const h = new InputHistory(200, null);
     expect(h.up()).toBe('');
   });
 
   it('recalls added entries with up()', () => {
-    const h = new InputHistory();
+    const h = new InputHistory(200, null);
     h.add('cmd1');
     h.add('cmd2');
     expect(h.up()).toBe('cmd2');
@@ -50,7 +50,7 @@ describe('InputHistory', () => {
   });
 
   it('navigates forward with down()', () => {
-    const h = new InputHistory();
+    const h = new InputHistory(200, null);
     h.add('cmd1');
     h.add('cmd2');
     h.up(); // cmd2
@@ -59,7 +59,7 @@ describe('InputHistory', () => {
   });
 
   it('returns empty string past the end', () => {
-    const h = new InputHistory();
+    const h = new InputHistory(200, null);
     h.add('cmd1');
     h.up(); // cmd1
     h.down(); // past end
@@ -67,7 +67,7 @@ describe('InputHistory', () => {
   });
 
   it('deduplicates consecutive entries', () => {
-    const h = new InputHistory();
+    const h = new InputHistory(200, null);
     h.add('same');
     h.add('same');
     h.add('same');
@@ -75,7 +75,7 @@ describe('InputHistory', () => {
   });
 
   it('resets index to end', () => {
-    const h = new InputHistory();
+    const h = new InputHistory(200, null);
     h.add('cmd1');
     h.up(); // cmd1
     h.reset();
@@ -83,7 +83,7 @@ describe('InputHistory', () => {
   });
 
   it('respects maxSize', () => {
-    const h = new InputHistory(3);
+    const h = new InputHistory(3, null);
     h.add('a');
     h.add('b');
     h.add('c');
