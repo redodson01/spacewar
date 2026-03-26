@@ -575,13 +575,14 @@ httpServer.listen(PORT, () => {
     tui = createTUI({
       getGameState: () => ({
         players: [
-          ...[...players.values()].map(p => ({ id: p.id, name: p.name, color: p.color })),
-          ...[...aiIds.entries()].map(([aiId]) => ({
-            id: aiId,
-            name: ships.find(s => s.id === aiId)?.name || `Bot ${aiId + 1}`,
-            color: PLAYER_COLORS[aiId],
-            isAI: true,
-          })),
+          ...[...players.values()].map(p => {
+            const ship = ships.find(s => s.id === p.id);
+            return { id: p.id, name: p.name, color: ship?.config?.color || p.color };
+          }),
+          ...[...aiIds.entries()].map(([aiId]) => {
+            const ship = ships.find(s => s.id === aiId);
+            return { id: aiId, name: ship?.name || `Bot ${aiId + 1}`, color: ship?.config?.color || PLAYER_COLORS[aiId], isAI: true };
+          }),
         ],
         scores: [...scores.entries()],
         latencies: [...playerLatencies.entries()],
