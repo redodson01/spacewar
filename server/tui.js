@@ -123,27 +123,27 @@ export function createTUI({ getGameState, onInput, onExit }) {
     mouse: true,
   });
 
-  // Player list (right-top — fills above stats)
-  const playerBox = blessed.box({
+  // Stats panel (right-top — fixed height)
+  const statsBox = blessed.box({
     parent: screen,
-    label: ' Players ',
+    label: ' Stats ',
     top: INFO_H,
     right: 0,
     width: RIGHT_W,
-    bottom: INPUT_H + STATS_H,
+    height: STATS_H,
     padding: PAD,
     border: { type: 'line' },
     style: { border: { fg: BORDER }, label: { fg: ACCENT } },
     tags: true,
   });
 
-  // Stats panel (right-bottom — fixed height)
-  const statsBox = blessed.box({
+  // Player list (right-bottom — fills below stats)
+  const playerBox = blessed.box({
     parent: screen,
-    label: ' Stats ',
+    label: ' Players ',
+    top: INFO_H + STATS_H,
     right: 0,
     width: RIGHT_W,
-    height: STATS_H,
     bottom: INPUT_H,
     padding: PAD,
     border: { type: 'line' },
@@ -151,13 +151,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
     tags: true,
   });
 
-  // Input line (bottom)
+  // Input line (bottom) — padding instead of prompt prefix
   const inputBox = blessed.textbox({
     parent: screen,
     bottom: 0,
     left: 0,
     width: '100%',
     height: INPUT_H,
+    padding: PAD,
     border: { type: 'line' },
     style: { border: { fg: BORDER } },
     label: ` {${ACCENT}-fg}Lua{/${ACCENT}-fg} `,
@@ -170,14 +171,14 @@ export function createTUI({ getGameState, onInput, onExit }) {
   let currentInput = '';
 
   function activateInput() {
-    inputBox.setValue('> ');
+    inputBox.setValue('');
     inputBox.focus();
     inputBox.readInput(() => {});
     screen.render();
   }
 
   inputBox.on('submit', (value) => {
-    const line = (value || '').replace(/^> /, '').trim();
+    const line = (value || '').trim();
     if (line) {
       history.add(line);
       onInput(line);
@@ -190,17 +191,17 @@ export function createTUI({ getGameState, onInput, onExit }) {
   });
 
   inputBox.key('up', () => {
-    const cur = inputBox.getValue().replace(/^> /, '').trim();
+    const cur = inputBox.getValue().trim();
     if (cur && history.index === history.entries.length) {
       currentInput = cur;
     }
-    inputBox.setValue('> ' + history.up());
+    inputBox.setValue(history.up());
     screen.render();
   });
 
   inputBox.key('down', () => {
     const next = history.down();
-    inputBox.setValue('> ' + (next || currentInput));
+    inputBox.setValue(next || currentInput);
     if (history.index === history.entries.length) currentInput = '';
     screen.render();
   });
@@ -231,9 +232,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
       const pts = score ? score[1] : 0;
       const latency = state.latencies.find(([id]) => id === p.id);
       const ms = latency ? `${latency[1]}ms` : '';
-      const tag = p.isAI ? '{magenta-fg}' : '{green-fg}';
-      const endTag = p.isAI ? '{/magenta-fg}' : '{/green-fg}';
-      playerLines.push(`${tag}${p.name || 'Player ' + (p.id + 1)}${endTag}  ${pts}  ${ms}`);
+      const color = p.color || (p.isAI ? 'magenta' : 'green');
+      playerLines.push(`{${color}-fg}${p.name || 'Player ' + (p.id + 1)}{/${color}-fg}  ${pts}  ${ms}`);
     }
     playerBox.setContent(playerLines.join('\n') || '{14-fg}No players{/14-fg}');
 
@@ -277,7 +277,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
     const h = lines.length + 2; // borders + content
     infoBox.height = h;
     logBox.top = h;
-    playerBox.top = h;
+    statsBox.top = h;
+    playerBox.top = h + STATS_H;
     screen.render();
   }
 

@@ -575,10 +575,11 @@ httpServer.listen(PORT, () => {
     tui = createTUI({
       getGameState: () => ({
         players: [
-          ...[...players.values()].map(p => ({ id: p.id, name: p.name })),
+          ...[...players.values()].map(p => ({ id: p.id, name: p.name, color: p.color })),
           ...[...aiIds.entries()].map(([aiId]) => ({
             id: aiId,
             name: ships.find(s => s.id === aiId)?.name || `Bot ${aiId + 1}`,
+            color: PLAYER_COLORS[aiId],
             isAI: true,
           })),
         ],
