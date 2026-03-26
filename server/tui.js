@@ -11,7 +11,7 @@ const EVENT_COLORS = {
   join:      'green',
   leave:     'yellow',
   kill:      'red',
-  collision: 'red',
+  collision: 'light-red', // orange in Solarized
   chat:      11,       // base00 — muted but readable on light and dark
   lua:       'cyan',
   'ws-error':'red',
@@ -291,7 +291,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
       case 'kill':
         return `{red-fg}[kill]{/red-fg} ${colorName(data.killer)} killed ${colorName(data.victim)}`;
       case 'collision':
-        return `{red-fg}[collision]{/red-fg} ${colorName(data.name)} destroyed`;
+        return `{light-red-fg}[collision]{/light-red-fg} ${colorName(data.name)} destroyed`;
       case 'lua':
         return `{cyan-fg}[lua]{/cyan-fg} ${escaped.replace(/^\[lua\] /, '')}`;
       case 'chat':

@@ -251,11 +251,13 @@ setInterval(() => {
           destroyShip(ships[i]);
           broadcastAll({ type: 'death', id: ships[i].id, x: ships[i].state.x, y: ships[i].state.y, killerId: null, cause: 'collision' });
           if (scores.has(ships[i].id)) scores.set(ships[i].id, scores.get(ships[i].id) - 1);
+          logger.log('collision', { name: ships[i].name || 'Player ' + (ships[i].id + 1) });
         }
         if (isServerAI(ships[j])) {
           destroyShip(ships[j]);
           broadcastAll({ type: 'death', id: ships[j].id, x: ships[j].state.x, y: ships[j].state.y, killerId: null, cause: 'collision' });
           if (scores.has(ships[j].id)) scores.set(ships[j].id, scores.get(ships[j].id) - 1);
+          logger.log('collision', { name: ships[j].name || 'Player ' + (ships[j].id + 1) });
         }
         broadcastScores();
       }
