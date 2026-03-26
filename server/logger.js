@@ -5,14 +5,14 @@ export function createLogger(sink = null) {
   function log(event, data = {}) {
     const line = formatLine(event, data);
     if (line == null) return;
-    if (sink) sink.log(event, line);
+    if (sink) sink.log(event, line, data);
     else console.log(line);
   }
 
   function error(event, data = {}) {
     const line = formatLine(event, data);
     if (line == null) return;
-    if (sink) sink.error(event, line);
+    if (sink) sink.error(event, line, data);
     else console.error(line);
   }
 
@@ -27,7 +27,7 @@ export function formatLine(event, data) {
     case 'collision':  return `[collision] ${data.name} destroyed`;
     case 'chat':      return `[chat] ${data.name ? data.name + ': ' : ''}${data.text}`;
     case 'lua':       return `[lua] ${data.text}`;
-    case 'ai':        return `[ai] ${data.text}`;
+    case 'ai':        return data.text || `[ai] ${data.botName} ${data.action}${data.byName ? ' by ' + data.byName : ''}`;
     case 'ws-error':  return `[ws] message handler error: ${data.error?.stack || data.error}`;
     case 'tunnel':    return `[tunnel] ${data.text}`;
     case 'info':      return data.text;

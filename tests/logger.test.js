@@ -52,13 +52,13 @@ describe('createLogger', () => {
     const sink = { log: vi.fn(), error: vi.fn() };
     const logger = createLogger(sink);
     logger.log('kill', { killer: 'A', victim: 'B' });
-    expect(sink.log).toHaveBeenCalledWith('kill', '[kill] A killed B');
+    expect(sink.log).toHaveBeenCalledWith('kill', '[kill] A killed B', { killer: 'A', victim: 'B' });
   });
 
   it('routes errors to sink.error', () => {
     const sink = { log: vi.fn(), error: vi.fn() };
     const logger = createLogger(sink);
     logger.error('ws-error', { error: 'test error' });
-    expect(sink.error).toHaveBeenCalledWith('ws-error', expect.stringContaining('test error'));
+    expect(sink.error).toHaveBeenCalledWith('ws-error', expect.stringContaining('test error'), { error: 'test error' });
   });
 });

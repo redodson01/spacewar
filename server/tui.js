@@ -266,13 +266,58 @@ export function createTUI({ getGameState, onInput, onExit }) {
 
   const refreshTimer = setInterval(updateStatus, 1000);
 
-  // --- Logger sink interface ---
-  function log(event, formattedLine) {
-    logBox.log(colorize(event, formattedLine));
+  // --- Player name colorization ---
+  function colorWithHex(name, hex) {
+    if (!name || !hex) return name || '';
+    const escaped = name.replace(/\{/g, '{open}');
+    const c = HEX_TO_ANSI[hex] || hex;
+    return `{${c}-fg}${escaped}{/${c}-fg}`;
   }
 
-  function error(event, formattedLine) {
-    logBox.log(colorize(event, formattedLine));
+  function colorName(name) {
+    if (!name) return name;
+    const state = getGameState();
+    const player = state.players.find(p => p.name === name);
+    if (player?.color) return colorWithHex(name, player.color);
+    return name.replace(/\{/g, '{open}');
+  }
+
+  function colorizeRich(event, formattedLine, data) {
+    const escaped = formattedLine.replace(/\{/g, '{open}');
+    switch (event) {
+      case 'join':
+        return `{green-fg}[join]{/green-fg} ${colorName(data.name)} (Player ${data.id + 1})`;
+      case 'leave':
+        return `{yellow-fg}[leave]{/yellow-fg} ${colorName(data.name)}`;
+      case 'kill':
+        return `{red-fg}[kill]{/red-fg} ${colorName(data.killer)} killed ${colorName(data.victim)}`;
+      case 'collision':
+        return `{red-fg}[collision]{/red-fg} ${colorName(data.name)} destroyed`;
+      case 'ai':
+        if (data.botName) {
+          const parts = [`{magenta-fg}[ai]{/magenta-fg} ${colorName(data.botName)} ${data.action}`];
+          if (data.byName) parts.push(`by ${colorName(data.byName)}`);
+          return parts.join(' ');
+        }
+        return colorize(event, formattedLine);
+      case 'chat':
+        if (data.name) {
+          const color = EVENT_COLORS[event];
+          return `{${color}-fg}[chat]{/${color}-fg} ${colorName(data.name)}: ${escaped.replace(/^\[chat\] .*?: /, '')}`;
+        }
+        return colorize(event, formattedLine);
+      default:
+        return colorize(event, formattedLine);
+    }
+  }
+
+  // --- Logger sink interface ---
+  function log(event, formattedLine, data) {
+    logBox.log(colorizeRich(event, formattedLine, data));
+  }
+
+  function error(event, formattedLine, data) {
+    logBox.log(colorizeRich(event, formattedLine, data));
   }
 
   // Initial render and focus

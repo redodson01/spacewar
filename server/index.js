@@ -450,7 +450,7 @@ wss.on('connection', (ws, req) => {
         findOrCreateShip(msg.aiId).name = msg.name;
         ships.find(s => s.id === msg.aiId).isAI = true;
         broadcast(ws, { type: 'join', id: msg.aiId, name: msg.name });
-        logger.log('ai', { text: `${msg.name} added by ${players.get(ws)?.name}` });
+        logger.log('ai', { botName: msg.name, action: 'added', byName: players.get(ws)?.name });
       }
 
       if (msg.type === 'aiLeave') {
