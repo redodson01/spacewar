@@ -146,9 +146,22 @@ export function createTUI({ getGameState, onInput, onExit }) {
     scrollbar: { style: { bg: BORDER } },
   });
 
-  // Override default mouse wheel scroll (half-height is too jumpy)
-  logBox.on('wheeldown', () => { logBox.scroll(3); screen.render(); });
-  logBox.on('wheelup', () => { logBox.scroll(-3); screen.render(); });
+  // Disable blessed's built-in auto-scroll and mouse wheel (half-height jumps).
+  // We manage scrolling ourselves: only auto-tail when the user is at the bottom.
+  logBox.removeAllListeners('wheeldown');
+  logBox.removeAllListeners('wheelup');
+  logBox.removeAllListeners('set content');
+  let userScrolledUp = false;
+  logBox.on('wheeldown', () => {
+    logBox.scroll(3);
+    userScrolledUp = logBox.getScrollPerc() < 100;
+    screen.render();
+  });
+  logBox.on('wheelup', () => {
+    logBox.scroll(-3);
+    userScrolledUp = true;
+    screen.render();
+  });
 
   // Stats panel (right-top — fixed height)
   const statsBox = blessed.box({
@@ -338,12 +351,20 @@ export function createTUI({ getGameState, onInput, onExit }) {
   }
 
   // --- Logger sink interface ---
+  function appendLog(text) {
+    logBox.pushLine(text);
+    if (!userScrolledUp) {
+      logBox.setScrollPerc(100);
+    }
+    screen.render();
+  }
+
   function log(event, formattedLine, data) {
-    logBox.log(colorizeRich(event, formattedLine, data));
+    appendLog(colorizeRich(event, formattedLine, data));
   }
 
   function error(event, formattedLine, data) {
-    logBox.log(colorizeRich(event, formattedLine, data));
+    appendLog(colorizeRich(event, formattedLine, data));
   }
 
   // Initial render and focus
