@@ -293,6 +293,8 @@ export function createTUI({ getGameState, onInput, onExit }) {
         return `{red-fg}[kill]{/red-fg} ${colorName(data.killer)} killed ${colorName(data.victim)}`;
       case 'collision':
         return `{red-fg}[collision]{/red-fg} ${colorName(data.name)} destroyed`;
+      case 'lua':
+        return `{cyan-fg}[lua]{/cyan-fg} ${escaped.replace(/^\[lua\] /, '')}`;
       case 'ai':
         if (data.botName) {
           const parts = [`{magenta-fg}[ai]{/magenta-fg} ${colorName(data.botName)} ${data.action}`];

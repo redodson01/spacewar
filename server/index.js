@@ -485,9 +485,8 @@ wss.on('connection', (ws, req) => {
       }
 
       if (msg.type === 'chat') {
-        if (msg.kind === 'lua') {
-          logger.log('lua', { text: msg.text });
-        } else {
+        // Skip logging kind='lua' — already logged at execution time (line 371)
+        if (msg.kind !== 'lua') {
           logger.log('chat', { name: msg.name, text: msg.text });
         }
       }
