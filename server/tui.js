@@ -221,18 +221,6 @@ export function createTUI({ getGameState, onInput, onExit }) {
     screen.render();
   });
 
-  // Map Solarized hex colors to ANSI names so blessed uses the base 16 palette
-  const HEX_TO_ANSI = {
-    '#dc322f': 'red',
-    '#859900': 'green',
-    '#268bd2': 'blue',
-    '#b58900': 'yellow',
-    '#2aa198': 'cyan',
-    '#d33682': 'magenta',
-    '#cb4b16': 'light-red',     // orange
-    '#6c71c4': 'light-magenta', // violet
-  };
-
   // --- Status panel refresh ---
   function updateStatus() {
     const state = getGameState();
@@ -244,7 +232,7 @@ export function createTUI({ getGameState, onInput, onExit }) {
       const pts = score ? score[1] : 0;
       const latency = state.latencies.find(([id]) => id === p.id);
       const ms = latency ? `${latency[1]}ms` : '';
-      const color = HEX_TO_ANSI[p.color] || p.color || 'white';
+      const color = p.color || 'white';
       playerLines.push(`{${color}-fg}${p.name || 'Player ' + (p.id + 1)}{/${color}-fg}  ${pts}  ${ms}`);
     }
     playerBox.setContent(playerLines.join('\n') || '{14-fg}No players{/14-fg}');
