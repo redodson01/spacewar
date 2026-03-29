@@ -281,7 +281,7 @@ function createLocalLuaContext(fengari, ships, projectiles, explosions, appendOu
   // speed
   lua.lua_pushcfunction(L, function (L) {
     if (lua.lua_gettop(L) >= 1) {
-      const speed = lua.lua_tonumber(L, 1);
+      const speed = Math.max(0.1, Math.min(10, lua.lua_tonumber(L, 1)));
       setGameSpeed(speed);
       appendOutput(`Game speed set to ${speed}x.`);
     } else {

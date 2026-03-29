@@ -136,7 +136,7 @@ export function createServerLua(ships, projectiles, callbacks) {
   // speed() / speed(n)
   lua.lua_pushcfunction(L, function (L) {
     if (lua.lua_gettop(L) >= 1) {
-      const speed = lua.lua_tonumber(L, 1);
+      const speed = Math.max(0.1, Math.min(10, lua.lua_tonumber(L, 1)));
       if (callbacks.onSetSpeed) callbacks.onSetSpeed(speed);
       output.push(`Game speed set to ${speed}x.`);
     } else {

@@ -372,7 +372,7 @@ luaCtx.setOnAIRemove((id) => {
 
 luaCtx.setGameSpeedAccessors(() => gameSpeed, (v) => { gameSpeed = v; });
 
-net.onGameSpeed((speed) => { gameSpeed = speed; });
+net.onGameSpeed((speed) => { gameSpeed = Math.max(0.1, Math.min(10, speed)); });
 
 net.onLatency((id, rtt) => {
   leaderboard.updateLatency(id, rtt);
@@ -394,10 +394,19 @@ net.connect(savedName || undefined).then((welcome) => {
   }
 
   if (welcome.error) {
-    ctx.fillStyle = '#839496';
-    ctx.font = '24px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(welcome.error, canvas.width / 2, canvas.height / 2);
+    function drawError() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#839496';
+      ctx.font = '24px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(welcome.error, canvas.width / 2, canvas.height / 2);
+    }
+    drawError();
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      drawError();
+    });
     return;
   }
 

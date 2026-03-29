@@ -10,7 +10,7 @@
 
 ## Server (`server/index.js`)
 
-A Node.js WebSocket + HTTP server (~645 lines):
+A Node.js WebSocket + HTTP server (~680 lines):
 - Assigns player IDs on connect, broadcasts join/leave events
 - Relays game messages between clients (client-authoritative state)
 - Runs a server-side Lua engine for game-global scripting

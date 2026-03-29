@@ -148,6 +148,8 @@ tests/
   commands.test.js         Command registry unit tests
   logger.test.js           Logger formatting and sink tests
   tui.test.js              TUI colorize and input history tests
+  server.test.js           Server WebSocket/HTTP integration tests
+  net-client.test.js       Network client unit tests
 ```
 
 ### Server Console
