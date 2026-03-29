@@ -122,7 +122,7 @@ export function createServerLua(ships, projectiles, callbacks) {
   lua.lua_pushcfunction(L, function (L) {
     if (lua.lua_gettop(L) < 2) { output.push('Usage: setName(shipNum, "name")'); return 0; }
     const shipNum = lua.lua_tointeger(L, 1);
-    const newName = toJS(lua.lua_tostring(L, 2));
+    const newName = toJS(lua.lua_tostring(L, 2)).slice(0, 30);
     const ship = ships.find(s => s.id === shipNum - 1);
     if (ship) {
       ship.name = newName;

@@ -303,7 +303,8 @@ wss.on('connection', (ws, req) => {
   }
 
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const name = url.searchParams.get('name') || `Player ${id + 1}`;
+  const raw = url.searchParams.get('name');
+  const name = raw ? raw.slice(0, 30) : `Player ${id + 1}`;
   const color = PLAYER_COLORS[id];
   players.set(ws, { id, color, name });
   scores.set(id, 0);

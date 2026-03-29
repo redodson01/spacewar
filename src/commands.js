@@ -42,7 +42,7 @@ registerCommand('help', {
 
 registerCommand('name', {
   handler(args, ctx) {
-    const newName = args.trim();
+    const newName = args.trim().slice(0, 30);
     if (!newName) {
       ctx.chat.addMessage('', '#dc322f', 'Usage: /name <new name>');
       return;

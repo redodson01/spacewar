@@ -406,7 +406,7 @@ net.connect(savedName || undefined).then((welcome) => {
   if (!savedName && playerName.startsWith('Player ')) {
     const prompted = prompt('Enter your name:', '');
     if (prompted) {
-      playerName = prompted;
+      playerName = prompted.slice(0, 30);
       net.sendNameChange(welcome.id, playerName);
     }
   }
