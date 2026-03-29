@@ -532,6 +532,10 @@ wss.on('connection', (ws, req) => {
     }
   });
 
+  ws.on('error', (e) => {
+    logger.error('ws-error', { error: e });
+  });
+
   ws.on('close', () => {
     clearInterval(pingInterval);
     playerLatencies.delete(id);

@@ -16,7 +16,7 @@ function makeShip(id = 0) {
   return {
     id,
     name: null,
-    config: { color: '#f00', radius: 20, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, fireCooldown: 0.25, showName: false, controlScheme: 0, explosionParticles: 25 },
+    config: { color: '#f00', radius: 20, thrust: 0.15, turnSpeed: 0.05, friction: 0.995, fireCooldown: 0.25, showName: false, explosionParticles: 25 },
     state: { x: 400, y: 300, angle: 0, vx: 0, vy: 0, thrusting: false, destroyed: false, respawnTimer: 0, invulnerableTimer: 0, fireCooldownTimer: 0 },
   };
 }
