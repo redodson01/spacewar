@@ -1,5 +1,11 @@
 # Spacewar
 
+[![CI](https://img.shields.io/github/actions/workflow/status/redodson01/spacewar/ci.yml?branch=main&label=CI)](https://github.com/redodson01/spacewar/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/redodson01/spacewar)](https://github.com/redodson01/spacewar/releases/latest)
+[![Release Date](https://img.shields.io/github/release-date/redodson01/spacewar)](https://github.com/redodson01/spacewar/releases/latest)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org/)
+[![License](https://img.shields.io/github/license/redodson01/spacewar)](LICENSE)
+
 A 2D spaceship game built with HTML5 Canvas, featuring an embedded Lua scripting engine (via [Fengari](https://fengari.io/)) for real-time game modification.
 
 ![Spacewar screenshot](screenshot.png)
