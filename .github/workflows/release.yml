@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --generate-notes
+
+  update-homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Homebrew formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          URL="https://github.com/redodson01/spacewar/archive/refs/tags/${TAG}.tar.gz"
+          SHA256=$(curl -sL "$URL" | sha256sum | cut -d' ' -f1)
+
+          # NB: YAML's | block strips the common 10-space indent before
+          # the shell sees this heredoc, so the delimiter and body land at
+          # column 0 with correct Ruby indentation.
+          cat > /tmp/spacewar.rb <<'FORMULA'
+          class Spacewar < Formula
+            desc "2D spaceship game with Lua scripting and multiplayer"
+            homepage "https://github.com/redodson01/spacewar"
+            url "RELEASE_URL"
+            sha256 "RELEASE_SHA256"
+            license "MIT"
+
+            depends_on "node"
+
+            def install
+              system "npm", "install", *std_npm_args
+              bin.install_symlink Dir["#{libexec}/bin/*"]
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/spacewar --version")
+            end
+          end
+          FORMULA
+
+          sed -i "s|RELEASE_URL|${URL}|" /tmp/spacewar.rb
+          sed -i "s|RELEASE_SHA256|${SHA256}|" /tmp/spacewar.rb
+
+          EXISTING_SHA=$(gh api repos/redodson01/homebrew-tap/contents/spacewar.rb --jq '.sha' 2>/dev/null || true)
+          CONTENT=$(base64 -w0 /tmp/spacewar.rb)
+
+          ARGS=(
+            --method PUT
+            -f "message=spacewar ${VERSION}"
+            -f "content=${CONTENT}"
+          )
+          if [ -n "$EXISTING_SHA" ]; then
+            ARGS+=(-f "sha=${EXISTING_SHA}")
+          fi
+
+          gh api repos/redodson01/homebrew-tap/contents/spacewar.rb "${ARGS[@]}"

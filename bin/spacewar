@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  const dir = dirname(fileURLToPath(import.meta.url));
+  const { version } = JSON.parse(readFileSync(join(dir, '..', 'package.json'), 'utf8'));
+  console.log(version);
+  process.exit(0);
+}
+
+await import('../server/index.js');

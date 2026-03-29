@@ -10,15 +10,29 @@ A 2D spaceship game built with HTML5 Canvas, featuring an embedded Lua scripting
 
 ![Spacewar screenshot](screenshot.png)
 
-## Getting Started
+## Install
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18+)
-
-### Install & Run
+### Homebrew
 
 ```bash
+brew install redodson01/tap/spacewar
+```
+
+Then run the server:
+
+```bash
+spacewar                              # start server (default 1920x1080)
+spacewar --width 800 --height 600     # custom world size
+spacewar --tunnel                     # with public URL for remote play
+```
+
+### From Source
+
+Requires [Node.js](https://nodejs.org/) (v18+).
+
+```bash
+git clone https://github.com/redodson01/spacewar.git
+cd spacewar
 npm install
 npm run dev
 ```
@@ -112,6 +126,8 @@ end
 ### Project Structure
 
 ```
+bin/
+  spacewar             CLI entry point (used by Homebrew)
 src/
   main.js              Entry point, wires modules together
   ship.js              Ship physics (pure logic, no DOM)
