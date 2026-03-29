@@ -30,6 +30,10 @@ describe('formatLine', () => {
     expect(formatLine('lua', { text: 'Ship is yellow!' })).toBe('[lua] Ship is yellow!');
   });
 
+  it('formats rate-limit events', () => {
+    expect(formatLine('rate-limit', { name: 'Flooder', id: 2 })).toBe('[rate-limit] Flooder (Player 3)');
+  });
+
   it('formats info events as raw text', () => {
     expect(formatLine('info', { text: 'Server listening' })).toBe('Server listening');
   });
