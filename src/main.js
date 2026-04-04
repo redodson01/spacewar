@@ -71,7 +71,7 @@ function joinP2() {
   p2.name = 'Player 2';
   ships.push(p2);
   leaderboard.addPlayer(p2.id, p2.name, p2.config.color);
-  luaCtx.reset();
+  luaCtx.refreshShips();
   chat.addMessage('', '#586e75', 'Player 2 joined!');
 }
 
@@ -120,6 +120,7 @@ const luaCtx = {
   runLua(code) { luaImpl.runLua(code); },
   runLuaREPL(line) { luaImpl.runLuaREPL(line); },
   callLuaUpdate(dt) { luaImpl.callLuaUpdate(dt); },
+  refreshShips() { luaImpl.refreshShips(); },
   reset() { luaImpl.reset(); },
   setOnShipUpdate(cb) { luaImpl.setOnShipUpdate(cb); },
   setOnNameChange(cb) { luaImpl.setOnNameChange(cb); },
@@ -145,7 +146,7 @@ net.onJoin((id, name) => {
   ship.name = name;
   ships.push(ship);
   leaderboard.addPlayer(id, name, PLAYER_COLORS[id]);
-  luaCtx.reset();
+  luaCtx.refreshShips();
   // Lua host re-broadcasts config so the new player gets any overrides
   if (net.localId === 0) {
     luaCtx.broadcastShipUpdates();
@@ -161,7 +162,7 @@ net.onLeave((id) => {
     for (let i = projectiles.length - 1; i >= 0; i--) {
       if (projectiles[i].ownerId === id) projectiles.splice(i, 1);
     }
-    luaCtx.reset();
+    luaCtx.refreshShips();
   }
 });
 
