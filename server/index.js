@@ -410,6 +410,34 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
+      // Handle color change from any player (applies to own ship only)
+      if (msg.type === 'colorChange') {
+        if (typeof msg.color !== 'string' || !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(msg.color)) return;
+        const ship = ships.find(s => s.id === id);
+        if (ship) ship.config.color = msg.color;
+        // Rebroadcast as luaUpdate for compatibility with existing client color handling
+        const updates = [{ id, color: msg.color }];
+        if (lastLuaUpdate) {
+          const existing = lastLuaUpdate.find(u => u.id === id);
+          if (existing) existing.color = msg.color;
+          else lastLuaUpdate.push({ id, color: msg.color });
+        } else {
+          lastLuaUpdate = updates;
+        }
+        broadcastAll({ type: 'luaUpdate', updates });
+        return;
+      }
+
+      // Handle game speed change (host only)
+      if (msg.type === 'setGameSpeed') {
+        if (id !== 0) return;
+        const speed = Math.max(0.1, Math.min(10, Number(msg.speed)));
+        if (!isFinite(speed)) return;
+        serverGameSpeed = speed;
+        broadcastAll({ type: 'gameSpeed', speed });
+        return;
+      }
+
       // Drop messages where the sender claims a ship ID they don't own
       if ('id' in msg && msg.id !== id && aiIds.get(msg.id) !== ws) {
         return;

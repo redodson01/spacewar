@@ -186,6 +186,14 @@ export function createNetClient() {
     send({ type: 'luaExec', code, mode });
   }
 
+  function sendColorChange(color) {
+    send({ type: 'colorChange', color });
+  }
+
+  function sendSetGameSpeed(speed) {
+    send({ type: 'setGameSpeed', speed });
+  }
+
   return {
     connect,
     sendState,
@@ -198,6 +206,8 @@ export function createNetClient() {
     sendLuaExec,
     sendAIJoin,
     sendAILeave,
+    sendColorChange,
+    sendSetGameSpeed,
     get isConnected() { return connected; },
     get localId() { return localId; },
     onJoin(cb) { callbacks.join = cb; },

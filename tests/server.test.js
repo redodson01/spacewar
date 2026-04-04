@@ -289,4 +289,90 @@ describe('WebSocket server', () => {
     ws1.close();
     ws2.close();
   });
+
+  it('handles colorChange from any player', async () => {
+    const ws1 = await connectWS('Host');
+    await waitForMessage(ws1, 'welcome');
+    const ws2 = await connectWS('Player');
+    const w2 = await waitForMessage(ws2, 'welcome');
+    await new Promise(r => setTimeout(r, 50));
+
+    const msgs1 = collectMessages(ws1);
+
+    // Non-host sends a color change — should be accepted
+    ws2.send(JSON.stringify({ type: 'colorChange', color: '#ff0' }));
+    await new Promise(r => setTimeout(r, 200));
+
+    // Should be rebroadcast as luaUpdate
+    const luaUpdate = msgs1.find(m => m.type === 'luaUpdate' && m.updates?.some(u => u.id === w2.id && u.color === '#ff0'));
+    expect(luaUpdate).toBeTruthy();
+
+    ws1.close();
+    ws2.close();
+  });
+
+  it('rejects colorChange with invalid hex', async () => {
+    const ws1 = await connectWS('Host');
+    await waitForMessage(ws1, 'welcome');
+    const ws2 = await connectWS('Player');
+    await waitForMessage(ws2, 'welcome');
+    await new Promise(r => setTimeout(r, 50));
+
+    const msgs1 = collectMessages(ws1);
+    const countBefore = msgs1.length;
+
+    // Invalid color — should be silently dropped
+    ws2.send(JSON.stringify({ type: 'colorChange', color: 'not-a-color' }));
+    await new Promise(r => setTimeout(r, 200));
+
+    const luaUpdate = msgs1.slice(countBefore).find(m => m.type === 'luaUpdate');
+    expect(luaUpdate).toBeUndefined();
+
+    ws1.close();
+    ws2.close();
+  });
+
+  it('handles setGameSpeed from host', async () => {
+    const ws1 = await connectWS('Host');
+    const w1 = await waitForMessage(ws1, 'welcome');
+    expect(w1.id).toBe(0);
+
+    const ws2 = await connectWS('Player');
+    await waitForMessage(ws2, 'welcome');
+    await new Promise(r => setTimeout(r, 50));
+
+    const msgs2 = collectMessages(ws2);
+
+    // Host sets game speed
+    ws1.send(JSON.stringify({ type: 'setGameSpeed', speed: 3.0 }));
+    await new Promise(r => setTimeout(r, 200));
+
+    const speedMsg = msgs2.find(m => m.type === 'gameSpeed' && m.speed === 3);
+    expect(speedMsg).toBeTruthy();
+
+    ws1.close();
+    ws2.close();
+  });
+
+  it('rejects setGameSpeed from non-host', async () => {
+    const ws1 = await connectWS('Host');
+    await waitForMessage(ws1, 'welcome');
+    const ws2 = await connectWS('NonHost');
+    const w2 = await waitForMessage(ws2, 'welcome');
+    expect(w2.id).not.toBe(0);
+    await new Promise(r => setTimeout(r, 50));
+
+    const msgs1 = collectMessages(ws1);
+    const countBefore = msgs1.length;
+
+    // Non-host tries to set speed — should be dropped
+    ws2.send(JSON.stringify({ type: 'setGameSpeed', speed: 5.0 }));
+    await new Promise(r => setTimeout(r, 200));
+
+    const speedMsg = msgs1.slice(countBefore).find(m => m.type === 'gameSpeed');
+    expect(speedMsg).toBeUndefined();
+
+    ws1.close();
+    ws2.close();
+  });
 });
