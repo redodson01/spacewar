@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Four dedicated input surfaces: Chat (Enter), Command bar (/), Lua bar (:), Script editor (backtick)
+- `/color` command — any player can change their ship color (e.g. `/color #ff0`)
+- Per-mode input history (chat, command, and Lua each have independent history with up/down arrows)
+- Server-side `colorChange` and `setGameSpeed` message types with validation
+
+### Changed
+
+- Player 2 fire/join key changed from `/` to `.` (frees `/` for command bar)
+- `/ai`, `/removeai`, `/speed` commands are now self-contained (no longer Lua wrappers)
+- Commands no longer fall through to Lua — unknown commands show an error message
+
+### Fixed
+
+- `onUpdate` callbacks (e.g. rainbow color cycling) no longer killed when players join/leave or AI is added/removed
+
+### Housekeeping
+
 - CLI entry point (`bin/spacewar`) with `--version` flag
 - Homebrew formula for `brew install` distribution
 - GitHub Actions release workflow (tag → GitHub Release → Homebrew tap update)

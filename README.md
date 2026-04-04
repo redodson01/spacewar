@@ -58,24 +58,31 @@ Both WASD and arrow keys work. Space to shoot.
 |---|---|
 | WASD / Arrow keys | Rotate and thrust |
 | Space | Shoot |
-| Enter | Open chat |
 
-### General
+### Input Surfaces
+
+| Key | Surface | Who | Purpose |
+|---|---|---|---|
+| Enter | Chat | everyone | Talk to other players |
+| `/` | Command bar | everyone | Game commands (`help`, `name`, `color`, `ai`, `removeai`, `speed`) |
+| `:` | Lua bar | host | Lua one-liners (REPL) |
+| `` ` `` (backtick) | Script editor | host | Multi-line Lua scripts |
+| Escape | | | Close any open input |
+
+### Editor Shortcuts
 
 | Key | Action |
 |---|---|
-| `` ` `` (backtick) | Toggle script editor |
-| Escape | Close script editor |
 | Ctrl/Cmd+Enter | Run full script |
 | Ctrl/Cmd+Left / Ctrl/Cmd+Right | Switch focus: game / editor panel |
 
 ## Lua Scripting
 
-Press backtick to open the script editor. Use chat `/commands` for quick Lua execution (e.g., `/ship.color="#ff0"`).
+Press backtick to open the script editor, or `:` for quick Lua one-liners. Use `/` for game commands (e.g., `/color #ff0`).
 
 ### API
 
-Type `/help` in chat for commands, or `/help()` for the full Lua API reference. Summary:
+Type `/help` in the command bar for commands, or `help()` in the Lua bar for the full API reference. Summary:
 
 | Global | Description |
 |---|---|
@@ -140,7 +147,7 @@ src/
   world.js             World dimensions, player colors, spawn positions
   lua-integration.js   Fengari/Lua bridge
   ship-proxy.js        Shared ship config/state Proxy for Lua scripts
-  commands.js          Chat command registry (/help, /name, /ai, etc.)
+  commands.js          Command bar registry (/help, /name, /color, /ai, etc.)
   editor.js            Script editor panel UI
   leaderboard.js       Score tracking and display
   chat.js              In-game chat messages and rendering

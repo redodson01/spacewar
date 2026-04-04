@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { loadScript, saveScript, clearAll, loadHistory, saveHistory, loadChatHistory, saveChatHistory } from '../src/storage.js';
+import { loadScript, saveScript, clearAll, loadHistory, saveHistory } from '../src/storage.js';
 
 beforeEach(() => {
   localStorage.clear();
@@ -70,9 +70,11 @@ describe('per-mode history', () => {
     expect(localStorage.getItem('spacewar:chat-history')).not.toBeNull();
   });
 
-  it('deprecated loadChatHistory/saveChatHistory still work', () => {
-    saveChatHistory(['a', 'b']);
-    expect(loadChatHistory()).toEqual(['a', 'b']);
-    expect(loadHistory('chat')).toEqual(['a', 'b']);
+  it('clearAll removes history keys', () => {
+    saveHistory('chat', ['a', 'b']);
+    saveHistory('command', ['help']);
+    clearAll();
+    expect(loadHistory('chat')).toEqual([]);
+    expect(loadHistory('command')).toEqual([]);
   });
 });

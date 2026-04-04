@@ -55,10 +55,6 @@ export function saveHistory(mode, history) {
   } catch { /* ignore quota errors */ }
 }
 
-// Deprecated — use loadHistory('chat') / saveHistory('chat', history)
-export function loadChatHistory() { return loadHistory('chat'); }
-export function saveChatHistory(history) { saveHistory('chat', history); }
-
 export function clearAll() {
   try {
     const keys = [];

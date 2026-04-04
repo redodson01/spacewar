@@ -11,7 +11,7 @@ import { getAIActions } from './ai.js';
 import { createLeaderboard } from './leaderboard.js';
 import { createChat } from './chat.js';
 import { createNetClient, createInterpolator } from './net.js';
-import { loadName, saveName, loadChatHistory, saveChatHistory } from './storage.js';
+import { loadName, saveName, loadHistory, saveHistory } from './storage.js';
 import { runCommand } from './commands.js';
 
 // Canvas
@@ -26,7 +26,7 @@ const ships = [];
 let stars = createStars(WORLD_WIDTH, WORLD_HEIGHT);
 const projectiles = createProjectiles();
 const explosions = createExplosions();
-const input = createInputManager(['script-input', 'chat-input']);
+const input = createInputManager(['script-input', 'bar-input']);
 input.attach(window);
 const leaderboard = createLeaderboard();
 const chat = createChat();
@@ -231,8 +231,67 @@ net.onChat((name, color, text) => {
   chat.addMessage(name, color, text);
 });
 
+// --- Standalone game action functions (used by both commands and Lua callbacks) ---
+
+function isHost() {
+  return !networkMode || net.localId === 0;
+}
+
+function addAI() {
+  let id = -1;
+  for (let i = 0; i < MAX_PLAYERS; i++) {
+    if (!ships.find(s => s.id === i)) { id = i; break; }
+  }
+  if (id < 0) return -1;
+  const ship = makeShip(id);
+  ship.isLocal = true;
+  ship.isAI = true;
+  ship.name = `Bot ${id + 1}`;
+  ships.push(ship);
+  leaderboard.addPlayer(id, ship.name, ship.config.color);
+  if (networkMode) net.sendAIJoin(id, ship.name);
+  luaCtx.refreshShips();
+  return id;
+}
+
+function removeAI(shipNum) {
+  const ship = ships.find(s => s.id === shipNum - 1);
+  if (!ship || !ship.isAI) return false;
+  const idx = ships.indexOf(ship);
+  if (idx >= 0) ships.splice(idx, 1);
+  leaderboard.removePlayer(ship.id);
+  if (networkMode) net.sendAILeave(ship.id);
+  luaCtx.refreshShips();
+  return true;
+}
+
+function getGameSpeedValue() {
+  return gameSpeed;
+}
+
+function setGameSpeedValue(val) {
+  const speed = Math.max(0.1, Math.min(10, val));
+  gameSpeed = speed;
+  if (networkMode) net.sendSetGameSpeed(speed);
+  return speed;
+}
+
+function makeCommandContext() {
+  const localShip = ships.find(s => s.isLocal);
+  return {
+    chat, net, networkMode, leaderboard,
+    isHost: isHost(),
+    localShip,
+    saveName: (name) => saveName(name, localShip?.id),
+    addAI,
+    removeAI,
+    getGameSpeed: getGameSpeedValue,
+    setGameSpeed: setGameSpeedValue,
+  };
+}
+
 function showHelpInChat() {
-  runCommand('help', '', { chat, luaCtx, net, networkMode, isHost: !networkMode || net.localId === 0 });
+  runCommand('help', '', makeCommandContext());
 }
 
 // P2 joins local game on first Period press
@@ -242,89 +301,117 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Chat input handling
-const chatBar = document.getElementById('chat-bar');
-const chatInput = document.getElementById('chat-input');
-let chatOpen = false;
-const chatHistory = loadChatHistory();
-let chatHistoryIdx = chatHistory.length;
+// --- Four input surfaces ---
+const inputBar = document.getElementById('input-bar');
+const barInput = document.getElementById('bar-input');
+const barLabel = document.getElementById('input-bar-label');
+let activeBar = null; // null | 'chat' | 'command' | 'lua'
 
+const PLACEHOLDERS = {
+  chat: 'Type a message...',
+  command: 'help, name, color, ai, removeai, speed...',
+  lua: 'Lua expression...',
+};
+
+const histories = {
+  chat: loadHistory('chat'),
+  command: loadHistory('command'),
+  lua: loadHistory('lua'),
+};
+let historyIdx = 0;
+
+function openBar(mode) {
+  activeBar = mode;
+  inputBar.dataset.mode = mode;
+  barLabel.textContent = mode === 'command' ? '/' : mode === 'lua' ? ':' : '';
+  barInput.placeholder = PLACEHOLDERS[mode];
+  barInput.value = '';
+  inputBar.classList.add('open');
+  barInput.focus();
+  input.clear();
+  historyIdx = histories[mode].length;
+}
+
+function closeBar() {
+  barInput.value = '';
+  inputBar.classList.remove('open');
+  barInput.blur();
+  activeBar = null;
+}
+
+// Keyboard triggers for opening input bars
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Enter' && !chatOpen && e.target === document.body) {
+  if (activeBar !== null || e.target !== document.body) return;
+
+  if (e.code === 'Enter') {
     e.preventDefault();
-    chatOpen = true;
-    chatBar.classList.add('open');
-    chatInput.focus();
-    input.clear();
+    openBar('chat');
+  } else if (e.code === 'Slash') {
+    e.preventDefault();
+    openBar('command');
+  } else if (e.key === ':') {
+    if (isHost()) {
+      e.preventDefault();
+      openBar('lua');
+    }
   }
 });
 
-chatInput.addEventListener('keydown', (e) => {
+// Input bar submit and navigation
+barInput.addEventListener('keydown', (e) => {
   if (e.code === 'Enter') {
     e.preventDefault();
-    const text = chatInput.value.trim();
+    const text = barInput.value.trim();
     if (text) {
-      if (chatHistory[chatHistory.length - 1] !== text) {
-        chatHistory.push(text);
-        saveChatHistory(chatHistory);
+      const history = histories[activeBar];
+      if (history[history.length - 1] !== text) {
+        history.push(text);
+        saveHistory(activeBar, history);
       }
-      chatHistoryIdx = chatHistory.length;
-      if (text.startsWith('/')) {
-        const spaceIdx = text.indexOf(' ', 1);
-        const cmdName = spaceIdx > 0 ? text.slice(1, spaceIdx) : text.slice(1);
-        const cmdArgs = spaceIdx > 0 ? text.slice(spaceIdx + 1) : '';
-        const localShip = ships.find(s => s.isLocal);
-        const ctx = {
-          chat, luaCtx, net, networkMode, leaderboard,
-          isHost: !networkMode || net.localId === 0,
-          localShip,
-          saveName: (name) => saveName(name, localShip?.id),
-        };
-        if (!runCommand(cmdName, cmdArgs, ctx)) {
-          // Not a registered command — treat as Lua REPL
-          if (!networkMode || net.localId === 0) {
-            luaCtx.runLuaREPL(text.slice(1));
-          } else {
-            chat.addMessage('', '#dc322f', 'Only the host can run Lua commands.');
-          }
-        }
-      } else {
+      historyIdx = history.length;
+
+      if (activeBar === 'chat') {
         const localShip = ships.find(s => s.isLocal);
         const name = localShip ? localShip.name : 'Player';
         const color = localShip ? localShip.config.color : '#839496';
         chat.addMessage(name, color, text);
         net.sendChat(name, color, text);
+      } else if (activeBar === 'command') {
+        const spaceIdx = text.indexOf(' ');
+        const cmdName = spaceIdx > 0 ? text.slice(0, spaceIdx) : text;
+        const cmdArgs = spaceIdx > 0 ? text.slice(spaceIdx + 1) : '';
+        if (!runCommand(cmdName, cmdArgs, makeCommandContext())) {
+          chat.addMessage('', '#dc322f', `Unknown command "${cmdName}". Type /help for a list.`);
+        }
+      } else if (activeBar === 'lua') {
+        luaCtx.runLuaREPL(text);
       }
     }
-    chatInput.value = '';
-    chatOpen = false;
-    chatBar.classList.remove('open');
-    chatInput.blur();
+    closeBar();
   } else if (e.code === 'Escape') {
     e.preventDefault();
-    chatInput.value = '';
-    chatOpen = false;
-    chatBar.classList.remove('open');
-    chatInput.blur();
+    closeBar();
   } else if (e.code === 'ArrowUp') {
     e.preventDefault();
-    if (chatHistoryIdx > 0) {
-      chatHistoryIdx--;
-      chatInput.value = chatHistory[chatHistoryIdx];
+    const history = histories[activeBar];
+    if (historyIdx > 0) {
+      historyIdx--;
+      barInput.value = history[historyIdx];
     }
   } else if (e.code === 'ArrowDown') {
     e.preventDefault();
-    if (chatHistoryIdx < chatHistory.length - 1) {
-      chatHistoryIdx++;
-      chatInput.value = chatHistory[chatHistoryIdx];
+    const history = histories[activeBar];
+    if (historyIdx < history.length - 1) {
+      historyIdx++;
+      barInput.value = history[historyIdx];
     } else {
-      chatHistoryIdx = chatHistory.length;
-      chatInput.value = '';
+      historyIdx = history.length;
+      barInput.value = '';
     }
   }
   e.stopPropagation();
 });
-chatInput.addEventListener('keyup', (e) => e.stopPropagation());
+barInput.addEventListener('keyup', (e) => e.stopPropagation());
 
 net.onNameChange((playerId, newName) => {
   const ship = ships.find(s => s.id === playerId);
@@ -345,20 +432,7 @@ luaCtx.setOnNameChange((playerId, newName) => {
 });
 
 luaCtx.setOnAIAdd(() => {
-  // Find lowest free ID
-  let id = -1;
-  for (let i = 0; i < MAX_PLAYERS; i++) {
-    if (!ships.find(s => s.id === i)) { id = i; break; }
-  }
-  if (id < 0) return -1;
-  const ship = makeShip(id);
-  ship.isLocal = true;
-  ship.isAI = true;
-  ship.name = `Bot ${id + 1}`;
-  ships.push(ship);
-  leaderboard.addPlayer(id, ship.name, ship.config.color);
-  if (networkMode) net.sendAIJoin(id, ship.name);
-  return id;
+  return addAI();
 });
 
 luaCtx.setOnAIRemove((id) => {
