@@ -78,8 +78,8 @@ describe('PLAYER_BINDINGS', () => {
     expect(PLAYER_BINDINGS[0]).toEqual({ thrust: 'KeyW', left: 'KeyA', right: 'KeyD', fire: 'Space' });
   });
 
-  it('player 2 uses Arrows + Slash', () => {
-    expect(PLAYER_BINDINGS[1]).toEqual({ thrust: 'ArrowUp', left: 'ArrowLeft', right: 'ArrowRight', fire: 'Slash' });
+  it('player 2 uses Arrows + Period', () => {
+    expect(PLAYER_BINDINGS[1]).toEqual({ thrust: 'ArrowUp', left: 'ArrowLeft', right: 'ArrowRight', fire: 'Period' });
   });
 });
 
@@ -96,7 +96,7 @@ describe('getActions', () => {
   });
 
   it('works with player 2 bindings', () => {
-    const keys = { ArrowUp: true, ArrowLeft: true, Slash: true };
+    const keys = { ArrowUp: true, ArrowLeft: true, Period: true };
     const actions = getActions(keys, PLAYER_BINDINGS[1]);
     expect(actions.thrust).toBe(true);
     expect(actions.left).toBe(true);

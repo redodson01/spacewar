@@ -235,9 +235,9 @@ function showHelpInChat() {
   runCommand('help', '', { chat, luaCtx, net, networkMode, isHost: !networkMode || net.localId === 0 });
 }
 
-// P2 joins local game on first Slash press
+// P2 joins local game on first Period press
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Slash' && !p2Joined && !networkMode && e.target === document.body) {
+  if (e.code === 'Period' && !p2Joined && !networkMode && e.target === document.body) {
     joinP2();
   }
 });

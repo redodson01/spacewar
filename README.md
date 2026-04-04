@@ -43,12 +43,12 @@ Open http://localhost:8080 in your browser.
 
 ### Local Mode
 
-Starts with 1 ship. Press `/` for Player 2 to join.
+Starts with 1 ship. Press `.` for Player 2 to join.
 
 | Key | Action |
 |---|---|
 | WASD + Space | Player 1 controls |
-| Arrow keys + `/` | Player 2 controls (joins on first press) |
+| Arrow keys + `.` | Player 2 controls (joins on first press) |
 
 ### Network Mode
 
