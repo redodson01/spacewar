@@ -81,22 +81,33 @@
     }
     #editor-controls button:hover { background: #2aa198; color: #002b36; }
 
-    #chat-bar {
+    #input-bar {
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100%;
       display: none;
       z-index: 20;
+      border-top: 1px solid #073642;
     }
-    #chat-bar.open { display: flex; }
-    #chat-input {
+    #input-bar.open { display: flex; }
+    #input-bar[data-mode="command"] { border-top-color: #2aa198; }
+    #input-bar[data-mode="lua"] { border-top-color: #b58900; }
+    #input-bar-label {
+      padding: 8px 0 8px 12px;
+      font-family: monospace;
+      font-size: 14px;
+      color: #586e75;
+      background: rgba(0, 43, 54, 0.9);
+    }
+    #input-bar[data-mode="command"] #input-bar-label { color: #2aa198; }
+    #input-bar[data-mode="lua"] #input-bar-label { color: #b58900; }
+    #bar-input {
       flex: 1;
       background: rgba(0, 43, 54, 0.9);
       color: #93a1a1;
       border: none;
-      border-top: 1px solid #073642;
-      padding: 8px 15px;
+      padding: 8px 12px;
       font-family: monospace;
       font-size: 14px;
       outline: none;
@@ -121,7 +132,7 @@
       <option value="orbit">Auto-orbit</option>
     </select>
   </div>
-  <textarea id="script-input" spellcheck="false">-- Type /help in chat for commands, /help() for the full Lua API.
+  <textarea id="script-input" spellcheck="false">-- Press / for commands, : for Lua one-liners, or help() for the full API.
 --
 -- Quick start:
 --   ship.color = "#ff0"          -- change color
@@ -142,8 +153,9 @@ print("Ship is now yellow!")
   </div>
 </div>
 
-<div id="chat-bar">
-  <input id="chat-input" type="text" placeholder="Type a message..." maxlength="200">
+<div id="input-bar" data-mode="chat">
+  <span id="input-bar-label"></span>
+  <input id="bar-input" type="text" maxlength="200">
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js" integrity="sha384-aqYZ5bBpWDOXcXQUTRXOLnaFjrqrMw1BiHjk/1cz75A3ytQtdNkW1QfTe7kTlLR6" crossorigin="anonymous"></script>

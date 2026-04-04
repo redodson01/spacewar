@@ -34,7 +34,7 @@ export function createInputManager(editorInputIds) {
 
 export const PLAYER_BINDINGS = [
   { thrust: 'KeyW', left: 'KeyA', right: 'KeyD', fire: 'Space' },
-  { thrust: 'ArrowUp', left: 'ArrowLeft', right: 'ArrowRight', fire: 'Slash' },
+  { thrust: 'ArrowUp', left: 'ArrowLeft', right: 'ArrowRight', fire: 'Period' },
 ];
 
 export function getActions(keys, bindings) {

@@ -27,9 +27,18 @@ export function saveName(name, playerId = null) {
   } catch { /* ignore quota errors */ }
 }
 
-export function loadChatHistory() {
+export function loadHistory(mode) {
   try {
-    const data = localStorage.getItem(PREFIX + 'chat-history');
+    const key = PREFIX + 'history:' + mode;
+    let data = localStorage.getItem(key);
+    // Migrate legacy chat history
+    if (!data && mode === 'chat') {
+      data = localStorage.getItem(PREFIX + 'chat-history');
+      if (data) {
+        localStorage.setItem(key, data);
+        localStorage.removeItem(PREFIX + 'chat-history');
+      }
+    }
     if (!data) return [];
     const parsed = JSON.parse(data);
     if (Array.isArray(parsed)) return parsed.slice(-MAX_HISTORY);
@@ -37,10 +46,10 @@ export function loadChatHistory() {
   return [];
 }
 
-export function saveChatHistory(history) {
+export function saveHistory(mode, history) {
   try {
     localStorage.setItem(
-      PREFIX + 'chat-history',
+      PREFIX + 'history:' + mode,
       JSON.stringify(history.slice(-MAX_HISTORY))
     );
   } catch { /* ignore quota errors */ }

@@ -24,6 +24,7 @@ function createNetworkLuaContext(net, appendOutput) {
     runLuaREPL(line) { net.sendLuaExec(line, 'repl'); },
     callLuaUpdate(_dt) {}, // server handles onUpdate
     reset() { net.sendLuaExec('__reset__', 'reset'); },
+    refreshShips() {}, // server tracks ships; no client-side action needed
     setOnShipUpdate() {},
     setOnNameChange() {},
     setOnAIAdd() {},
@@ -43,6 +44,7 @@ function createLocalLuaContext(fengari, ships, projectiles, explosions, appendOu
       runLua(_code) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       runLuaREPL(_line) { appendOutput('Lua not available — is fengari-web loaded?', true); },
       callLuaUpdate(_dt) {},
+      refreshShips() {},
       reset() {},
       setOnShipUpdate() {},
       setOnNameChange() {},
@@ -190,6 +192,10 @@ function createLocalLuaContext(fengari, ships, projectiles, explosions, appendOu
         ctx.hasOnUpdate = false;
       }
       broadcastShipUpdates(true);
+    },
+
+    refreshShips() {
+      exposeShips();
     },
 
     reset() {

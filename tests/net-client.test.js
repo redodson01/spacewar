@@ -189,6 +189,18 @@ describe('createNetClient', () => {
       expect(msg.aiId).toBe(5);
     });
 
+    it('sendColorChange sends color change message', () => {
+      client.sendColorChange('#ff0');
+      const msg = ws.sent.find(m => m.type === 'colorChange');
+      expect(msg.color).toBe('#ff0');
+    });
+
+    it('sendSetGameSpeed sends speed change message', () => {
+      client.sendSetGameSpeed(2.5);
+      const msg = ws.sent.find(m => m.type === 'setGameSpeed');
+      expect(msg.speed).toBe(2.5);
+    });
+
     it('auto-injects localId when msg has no id', () => {
       client.sendChat('X', '#f00', 'test');
       const msg = ws.sent.find(m => m.type === 'chat');
