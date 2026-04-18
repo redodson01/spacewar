@@ -19,10 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Player 2 fire/join key changed from `/` to `.` (frees `/` for command bar)
 - `/ai`, `/removeai`, `/speed` commands are now self-contained (no longer Lua wrappers)
 - Commands no longer fall through to Lua — unknown commands show an error message
+- `--tunnel` now invokes [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) directly instead of bundling it via `untun`. `cloudflared` must be installed separately
 
 ### Fixed
 
 - `onUpdate` callbacks (e.g. rainbow color cycling) no longer killed when players join/leave or AI is added/removed
+- `--tunnel` now works on arm64 macOS (previously, `untun` downloaded the amd64 `cloudflared` binary, causing `EBADARCH` errors)
 
 ### Housekeeping
 

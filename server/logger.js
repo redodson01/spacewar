@@ -29,7 +29,6 @@ export function formatLine(event, data) {
     case 'lua':       return `[lua] ${data.text}`;
     case 'rate-limit': return `[rate-limit] ${data.name} (Player ${data.id + 1})`;
     case 'ws-error':  return `[ws] message handler error: ${data.error?.stack || data.error}`;
-    case 'tunnel':    return `[tunnel] ${data.text}`;
     case 'info':      return data.text;
     default:          return `[${event}] ${JSON.stringify(data)}`;
   }

@@ -4,6 +4,7 @@ import { join, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 import { createInterface } from 'readline';
+import { spawn } from 'child_process';
 import { WebSocketServer } from 'ws';
 import { createServerLua, createShip as createLuaShip } from './lua.js';
 import { getAIActions } from '../src/ai.js';
@@ -635,7 +636,28 @@ function setupReadlineREPL() {
 }
 
 // --- Startup ---
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
+  // Gather server info
+  const infoLines = [`Local:  http://localhost:${PORT}`];
+  if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
+    infoLines.push(`World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}`);
+  }
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        infoLines.push(`LAN:    http://${net.address}:${PORT}`);
+      }
+    }
+  }
+
+  // Start tunnel BEFORE TUI so the public URL is included in the initial info display
+  if (process.argv.includes('--tunnel')) {
+    // Visual feedback during the up-to-30s tunnel handshake; wiped when the TUI takes over.
+    process.stderr.write('Starting cloudflared tunnel...\n');
+    await startTunnel(infoLines);
+  }
+
   // Set up TUI or fallback to readline
   let tui = null;
   if (process.stdout.isTTY) {
@@ -668,45 +690,58 @@ httpServer.listen(PORT, () => {
     setupReadlineREPL();
   }
 
-  // Gather server info
-  const infoLines = [`Local:  http://localhost:${PORT}`];
-  if (WORLD_WIDTH !== 1920 || WORLD_HEIGHT !== 1080) {
-    infoLines.push(`World:  ${WORLD_WIDTH}x${WORLD_HEIGHT}`);
-  }
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      if (net.family === 'IPv4' && !net.internal) {
-        infoLines.push(`LAN:    http://${net.address}:${PORT}`);
-      }
-    }
-  }
-
   if (process.stdout.isTTY && tui) {
     tui.setInfo(infoLines);
   } else {
     logger.log('info', { text: 'Spacewar server listening on:' });
     for (const line of infoLines) logger.log('info', { text: `  ${line}` });
   }
-
-  if (process.argv.includes('--tunnel')) {
-    startTunnel(tui, infoLines);
-  }
 });
 
-async function startTunnel(tui, infoLines) {
+async function startTunnel(infoLines) {
   try {
-    const { startTunnel: start } = await import('untun');
-    const tunnel = await start({ port: PORT });
-    const url = await tunnel.getURL();
-    if (tui) {
-      infoLines.push(`Public: ${url}`);
-      tui.setInfo(infoLines);
-    } else {
-      logger.log('info', { text: `  Public: ${url}` });
-    }
+    const url = await spawnCloudflared();
+    infoLines.push(`Public: ${url}`);
   } catch (e) {
-    logger.error('tunnel', { text: `Failed to start tunnel: ${e.message}` });
-    logger.error('tunnel', { text: 'Install untun: npm install --save-dev untun' });
+    // Report into infoLines so the error survives the TUI taking over the screen.
+    if (e.code === 'ENOENT') {
+      infoLines.push('Public: cloudflared not found — install from:');
+      infoLines.push('        https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/');
+    } else {
+      infoLines.push(`Public: tunnel failed — ${e.message}`);
+    }
   }
+}
+
+function spawnCloudflared() {
+  return new Promise((resolve, reject) => {
+    // --no-autoupdate prevents cloudflared from silently restarting (and breaking
+    // the public URL) when its 24h auto-update check finds a new version.
+    const child = spawn('cloudflared', ['tunnel', '--no-autoupdate', '--url', `http://localhost:${PORT}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const urlRegex = /\|\s+(https?:\/\/\S+)/;
+    const timeout = setTimeout(() => {
+      child.kill();
+      reject(new Error('Timed out waiting for tunnel URL'));
+    }, 30_000);
+    const onData = (data) => {
+      const match = data.toString().match(urlRegex);
+      if (match) {
+        clearTimeout(timeout);
+        resolve(match[1]);
+      }
+    };
+    child.stdout.on('data', onData);
+    child.stderr.on('data', onData);
+    child.on('error', (e) => { clearTimeout(timeout); reject(e); });
+    child.on('close', (code) => { clearTimeout(timeout); reject(new Error(`cloudflared exited with code ${code}`)); });
+
+    process.on('exit', () => child.kill('SIGINT'));
+    // Trigger process.exit so the 'exit' handler above runs and cleans up the child.
+    // Don't intercept SIGUSR1 (reserved by Node for the inspector) or SIGUSR2.
+    for (const signal of ['SIGINT', 'SIGTERM']) {
+      process.once(signal, () => process.exit(0));
+    }
+  });
 }
