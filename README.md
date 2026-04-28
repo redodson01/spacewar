@@ -23,8 +23,10 @@ Then run the server:
 ```bash
 spacewar                              # start server (default 1920x1080)
 spacewar --width 800 --height 600     # custom world size
-spacewar --tunnel                     # with public URL for remote play
+spacewar --tunnel                     # with public URL for remote play (requires cloudflared)
 ```
+
+`--tunnel` requires [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) to be installed separately (e.g. `brew install cloudflared` on macOS).
 
 ### From Source
 
@@ -190,7 +192,7 @@ tests/
 ```bash
 npm run dev          # Local dev server (single-player local mode)
 npm run serve        # Multiplayer server (LAN)
-npm run serve:tunnel # Multiplayer server + public URL for remote play
+npm run serve:tunnel # Multiplayer server + public URL for remote play (requires cloudflared)
 npm run serve -- --width 800 --height 600  # Custom world size
 npm run lint         # Run ESLint
 npm test             # Run tests (Vitest)

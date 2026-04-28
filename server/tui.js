@@ -18,7 +18,6 @@ const EVENT_COLORS = {
   chat:      11,       // base00 — muted but readable on light and dark
   lua:       'cyan',
   'ws-error':'red',
-  tunnel:    'blue',
   info:      null,     // use terminal default
 };
 
